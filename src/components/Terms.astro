@@ -1,0 +1,26 @@
+---
+import { splitTerms } from "../content/glossary.ts";
+
+interface Props {
+  text: string;
+}
+
+const segments = splitTerms(Astro.props.text);
+// A short random prefix keeps the tooltip ids unique when one page renders many terms.
+const uid = crypto.randomUUID().slice(0, 8);
+---
+
+{
+  segments.map((segment, index) =>
+    segment.definition === undefined ? (
+      segment.text
+    ) : (
+      <span class="term">
+        <span class="term-word" tabindex="0" aria-describedby={`term-tip-${uid}-${index}`}>
+          {segment.text}
+        </span>
+        <span role="tooltip" id={`term-tip-${uid}-${index}`}>{segment.definition}</span>
+      </span>
+    ),
+  )
+}

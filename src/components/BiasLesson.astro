@@ -1,0 +1,286 @@
+---
+import type { BiasLesson } from "../domain/ranking/bias-lesson.ts";
+import BiasLab from "../islands/bias/BiasLab.tsx";
+import Terms from "./Terms.astro";
+
+interface Props {
+  lesson: BiasLesson;
+  titles: Record<string, string>;
+}
+
+const { lesson, titles } = Astro.props;
+
+const learn = lesson.chapters.learned;
+const decay = lesson.propensity.estimatedDecay;
+const positions = decay.length;
+const chart = { w: 640, h: 280, left: 48, right: 24, top: 20, bottom: 52 };
+const plotW = chart.w - chart.left - chart.right;
+const plotH = chart.h - chart.top - chart.bottom;
+const maxY = Math.max(...decay, 0.0001);
+const topRate = decay[0] ?? 0;
+const lastRate = decay[positions - 1] ?? 0;
+
+function x(index: number): number {
+  return chart.left + (positions === 1 ? 0 : (index / (positions - 1)) * plotW);
+}
+function y(value: number): number {
+  return chart.top + plotH - (value / maxY) * plotH;
+}
+function points(values: readonly number[]): string {
+  return values.map((value, index) => `${x(index).toFixed(1)},${y(value).toFixed(1)}`).join(" ");
+}
+const gridValues = [1, 0.75, 0.5, 0.25, 0].map((fraction) => fraction * maxY);
+function titleOf(itemId: string): string {
+  return titles[itemId] ?? itemId;
+}
+const pct = (value: number) => `${Math.round(value * 100)}%`;
+---
+
+<div class="flex flex-col gap-5">
+  <div class="grid items-end gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+    <div>
+      <span class="eyebrow text-xs tracking-[0.08em]">Chapter {learn} · learning from clicks</span>
+      <p class="m-0 mt-1 text-[12.5px] text-ink-3">
+        Read this after the chapter {learn} lesson.
+        <a href="/search?q=marble&level=level-3-learned" class="ml-1 font-semibold"
+          >Open chapter {learn} →</a
+        >
+      </p>
+      <h1
+        class="m-0 mt-1.5 max-w-[24ch] font-serif text-[34px] font-medium leading-[1.15] tracking-[-0.015em] text-balance"
+      >
+        A ranker trained on raw clicks learns to copy the ranking that produced them.
+      </h1>
+      <p class="m-0 mt-2.5 max-w-[64ch] font-serif text-[16.5px] text-ink-2">
+        <Terms
+          text={`Searchers click what they see: the top result gets most of the clicks, whatever its quality. A model that counts every click as a vote therefore rewards whatever was already on top. That is position bias. The fix: multiply each click by how likely its position was to be seen, so a click low on the page weighs more. That is inverse propensity scoring.`}
+        />
+      </p>
+    </div>
+    <dl class="card m-0 grid grid-cols-[128px_1fr] gap-x-4 gap-y-2 px-[18px] py-3.5 text-[13px]">
+      <dt class="eyebrow col-span-2">How this click log was made</dt>
+      <dt class="text-ink-4">Sessions</dt>
+      <dd class="m-0">
+        <span class="font-mono">{lesson.dataDisclosure.sessionCount}</span> simulated searchers on{" "}
+        <span class="font-mono">{lesson.dataDisclosure.queryCount}</span> queries
+      </dd>
+      <dt class="text-ink-4">Who clicked</dt>
+      <dd class="m-0">
+        Each searcher clicked a shown listing with a probability set by its WANDS grade times a
+        position-decay factor. A weakly relevant listing at position 1 still earned clicks, which is
+        how the bias enters the log.
+      </dd>
+      <dt class="text-ink-4">Clicks</dt>
+      <dd class="m-0">
+        <span class="font-mono">{lesson.dataDisclosure.clickCount}</span> clicks in total. Result 1
+        was clicked by {pct(topRate)} of sessions, result {positions} by {pct(lastRate)}.
+      </dd>
+      <dd class="col-span-2 m-0 mt-0.5 text-[12px] text-ink-3">
+        Real click logs look like this: relevance and position mixed together. The clicks come from
+        the searchers; the grades come from a separate answer key. A model cannot tell the two
+        apart from a click alone. That is the problem this page fixes.
+      </dd>
+    </dl>
+  </div>
+
+  <div class="grid gap-3.5 sm:grid-cols-3" data-tour="bias-metrics">
+    <div class="card flex flex-col gap-1 px-5 py-[18px]">
+      <span class="eyebrow">Naive · NDCG@10</span>
+      <span class="font-mono text-[34px] leading-[1.1] tracking-[-0.01em] text-ink-2"
+        >{lesson.naive.ndcgAt10.toFixed(3)}</span
+      >
+      <span class="text-[12.5px] text-ink-3">trained on raw clicks</span>
+    </div>
+    <div class="card flex flex-col gap-1 px-5 py-[18px]">
+      <span class="eyebrow">Corrected · NDCG@10</span>
+      <span class="font-mono text-[34px] leading-[1.1] tracking-[-0.01em]"
+        >{lesson.corrected.ndcgAt10.toFixed(3)}</span
+      >
+      <span class="text-[12.5px] text-ink-3">clicks weighted by position</span>
+    </div>
+    <div class="card-warm flex flex-col gap-1 px-5 py-[18px]">
+      <span class="eyebrow">Gap, corrected minus naive</span>
+      <span
+        class:list={[
+          "font-mono text-[34px] leading-[1.1] tracking-[-0.01em]",
+          lesson.gap >= 0 ? "text-amber-deep" : "text-red",
+        ]}
+      >
+        {lesson.gap >= 0 ? "+" : "−"}{Math.abs(lesson.gap).toFixed(3)}
+      </span>
+      <span class="text-[12.5px] text-ink-3"
+        ><span class="tag tag-ok">same log, same answer key</span></span
+      >
+    </div>
+  </div>
+
+  <p class="note m-0 text-[13px]">
+    <strong class="text-ink">Do not compare these numbers with the scorecard.</strong> This page
+    trains two small models on the click log above and scores them on the book's {lesson.queryCount}{" "}
+    teaching queries. The scorecard grades the full chapter {learn} pipeline on its own answer key.
+    Same metric, different test. The two models differ in one thing only: how they treat a click.
+    The lab below shows which listings move.
+  </p>
+
+  <div class="grid items-start gap-[18px] lg:grid-cols-2">
+    <section
+      class="card flex flex-col gap-2.5 px-[18px] pb-3 pt-4"
+      aria-labelledby="decay-heading"
+      data-tour="bias-chart"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="h2" id="decay-heading">Click rate by result position</h2>
+        <div class="flex flex-wrap gap-3.5 text-xs text-ink-2">
+          <span class="inline-flex items-center gap-1.5"
+            ><i class="inline-block h-0.5 w-3.5 bg-amber" aria-hidden="true"></i>share of sessions
+            that clicked</span
+          >
+        </div>
+      </div>
+      <svg
+        viewBox={`0 0 ${chart.w} ${chart.h}`}
+        class="chart block w-full"
+        role="img"
+        aria-label={`Click rate by result position, positions 1 to ${positions}`}
+      >
+        <g font-family="IBM Plex Mono, Menlo, monospace" font-size="11" fill="#5c5347">
+          {
+            gridValues.map((value, index) => (
+              <>
+                <line
+                  x1={chart.left}
+                  y1={y(value)}
+                  x2={chart.w - chart.right}
+                  y2={y(value)}
+                  stroke={index === gridValues.length - 1 ? "#cfc5b4" : "#ede6d9"}
+                />
+                <text x={chart.left - 8} y={y(value) + 4} text-anchor="end">
+                  {value.toFixed(2).replace(/^0/, "")}
+                </text>
+              </>
+            ))
+          }
+          {
+            decay.map((_value, index) => (
+              <text x={x(index)} y={chart.h - 30} text-anchor="middle">
+                {index + 1}
+              </text>
+            ))
+          }
+          <text x={chart.left + plotW / 2} y={chart.h - 14} text-anchor="middle">
+            result position
+          </text>
+          <text
+            x={14}
+            y={chart.top + plotH / 2}
+            text-anchor="middle"
+            transform={`rotate(-90 14 ${chart.top + plotH / 2})`}
+          >
+            share of sessions
+          </text>
+        </g>
+        <polyline
+          fill="none"
+          stroke="#b3641e"
+          stroke-width="2"
+          stroke-linejoin="round"
+          points={points(decay)}
+        />
+        <g fill="#b3641e" stroke="#fffdf8" stroke-width="2">
+          {
+            decay.map((value, index) => (
+              <circle cx={x(index)} cy={y(value)} r="4">
+                <title>{`position ${index + 1}: clicked by ${value.toFixed(3)} of sessions`}</title>
+              </circle>
+            ))
+          }
+        </g>
+        <g font-family="IBM Plex Sans, sans-serif" font-size="11.5" fill="#26211b">
+          <text x={x(0) + 8} y={y(topRate) + 16} text-anchor="start">{pct(topRate)} at position 1</text>
+          <text x={x(positions - 1) - 10} y={y(lastRate) - 8} text-anchor="end"
+            >{pct(lastRate)} at position {positions}</text
+          >
+        </g>
+      </svg>
+      <p class="m-0 text-[12.5px] text-ink-3">
+        The corrected model divides each click by this click rate, so a click at position {positions}{" "}
+        counts for more than a click at position 1.
+      </p>
+    </section>
+
+    <section class="card" aria-labelledby="bait-heading">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-rule px-3.5 py-3">
+        <div class="flex items-center gap-2.5">
+          <h2 class="h2" id="bait-heading">Useless listings searchers clicked</h2>
+          {
+            lesson.clickedBaitExamples.length > 0 ? (
+              <span class="tag tag-warn">
+                {lesson.clickedBaitExamples.length === 1
+                  ? "1 case"
+                  : `${lesson.clickedBaitExamples.length} cases`}
+              </span>
+            ) : null
+          }
+        </div>
+        <span class="text-[12px] text-ink-3">Grade-0 listings, first 10 log positions</span>
+      </div>
+      {
+        lesson.clickedBaitExamples.length === 0 ? (
+          <p class="m-0 px-3.5 py-3 text-[13px] text-ink-2">
+            No grade-0 listing was clicked here.
+          </p>
+        ) : (
+          <ul class="m-0 list-none p-0">
+            <li class="eyebrow hidden grid-cols-[70px_minmax(0,1fr)_40px_56px] gap-1.5 px-3.5 pb-1 pt-2 sm:grid sm:grid-cols-[92px_minmax(0,1fr)_54px_74px] sm:gap-3">
+              <span>Query</span>
+              <span>Listing</span>
+              <span class="text-right">Log</span>
+              <span class="text-right">Clicks</span>
+            </li>
+            {lesson.clickedBaitExamples.map((example) => (
+              <li class="grid grid-cols-[70px_minmax(0,1fr)_40px_56px] items-center gap-1.5 border-t border-rule-soft px-3.5 py-2.5 text-[13px] sm:grid-cols-[92px_minmax(0,1fr)_54px_74px] sm:gap-3">
+                <span class="min-w-0 break-words font-mono sm:truncate">{example.queryText}</span>
+                <span class="min-w-0 font-serif text-[15px]">{titleOf(example.itemId)}</span>
+                <span class="text-right font-mono text-ink-3">#{example.logPosition}</span>
+                <span class="text-right font-mono text-ink-3"
+                  >{example.clicks}/{example.sessions}</span
+                >
+              </li>
+            ))}
+          </ul>
+        )
+      }
+      <p class="m-0 border-t border-rule-soft px-3.5 py-2.5 text-[12.5px] text-ink-2">
+        Every row is a listing the answer key grades 0 (useless) that searchers still clicked. It
+        was shown near the top, so it was seen and clicked. Each click enters training as a vote for
+        relevance, so the model learns to rank it higher. That is the bias, in the raw data.
+      </p>
+    </section>
+  </div>
+
+  <section aria-labelledby="lab-heading" data-tour="bias-lab">
+    <h2 class="h2 mb-2" id="lab-heading">Run the two models on the same log</h2>
+    <BiasLab client:load examples={lesson.logExamples} titles={titles} learnedChapter={learn} />
+  </section>
+
+  <section class="card-warm grid gap-6 px-[18px] py-4 lg:grid-cols-2">
+    <div>
+      <h2 class="h2">The correction, named</h2>
+      <p class="m-0 mt-1.5 font-serif text-[15.5px] leading-normal">
+        <Terms text={lesson.correctionTechnique} />
+      </p>
+    </div>
+    <div>
+      <h2 class="h2">Why the uncorrected log copies the ranking</h2>
+      <p class="m-0 mt-1.5 font-serif text-[15.5px] leading-normal">
+        The log was produced by a ranker. Clicks concentrate at the top regardless of relevance, so
+        "was clicked" mostly means "was shown first". A model fit to that signal learns the old
+        ranker's preferences, and its mistakes become training data.
+      </p>
+      <p class="m-0 mt-2 font-serif text-[15.5px] leading-normal">
+        In your own service: if your only click data comes from the ranking you already have, treat
+        its order as suspect. A random slice of results is the clean way to measure position.
+      </p>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,277 @@
+---
+import { familyOf, QUERY_FAMILIES } from "../domain/evaluation/query-family.ts";
+import type { QueryFamilyId } from "../domain/evaluation/query-family.ts";
+import type { Scorecard } from "../domain/types/evaluation.ts";
+
+import Terms from "./Terms.astro";
+
+interface Props {
+  scorecard: Scorecard;
+  labels: ReadonlyMap<string, { ordinal: number; label: string }>;
+  /** Level whose regression rows are highlighted, from a checkpoint's "See which" link. */
+  highlightLevelId?: string | null;
+}
+
+const { scorecard, labels, highlightLevelId = null } = Astro.props;
+const highlighted = labels.get(highlightLevelId ?? "");
+
+function labelOf(levelId: string): { ordinal: string; label: string } {
+  const entry = labels.get(levelId);
+  return entry === undefined
+    ? { ordinal: "", label: levelId }
+    : { ordinal: String(entry.ordinal), label: entry.label };
+}
+
+// Level 0 grades the others and has no ranking of its own, so it has no row.
+const runs = scorecard.runs.filter((run) => labels.get(run.levelId)?.ordinal !== 0);
+const maxNdcg = Math.max(...runs.map((run) => run.ndcgAt10), 0.0001);
+const deltas = runs.map((run, index) =>
+  index === 0 ? null : run.ndcgAt10 - (runs[index - 1]?.ndcgAt10 ?? 0),
+);
+const recallMoves = new Set(runs.map((run) => run.recallAt50.toFixed(3))).size > 1;
+
+function familyMean(levelId: string, familyId: QueryFamilyId): { ndcg: number; count: number } | null {
+  const run = runs.find((entry) => entry.levelId === levelId);
+  if (run === undefined) {
+    return null;
+  }
+  const rows = run.perQuery.filter((row) => familyOf(row.queryText) === familyId);
+  if (rows.length === 0) {
+    return null;
+  }
+  const ndcg = rows.reduce((sum, row) => sum + row.ndcgAt10, 0) / rows.length;
+  return { ndcg, count: rows.length };
+}
+
+const presentFamilies = QUERY_FAMILIES.filter((family) =>
+  runs.some((run) => familyMean(run.levelId, family.id) !== null),
+);
+---
+
+<div class="flex flex-col gap-[18px]">
+  {
+    presentFamilies.length > 0 && runs.length > 0 ? (
+      <section class="card" aria-label="Metrics by query family">
+        <div class="border-b border-rule px-3.5 py-3">
+          <h2 class="h2">Where each chapter helps</h2>
+          <p class="m-0 mt-1 max-w-[72ch] font-serif text-[14px] leading-snug text-ink-2">
+            Read this table first. Each row is the trap one chapter is built to fix. The numbers
+            are still real NDCG@10, not a demo. Scroll right for the later chapters.
+          </p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[900px] border-collapse">
+            <thead>
+              <tr class="text-left">
+                <th scope="col" class="eyebrow sticky left-0 z-10 min-w-[220px] border-b border-rule bg-surface px-3.5 py-2.5 font-semibold">
+                  Query family
+                </th>
+                {runs.map((run) => {
+                  const { ordinal } = labelOf(run.levelId);
+                  return (
+                    <th
+                      scope="col"
+                      class="eyebrow border-b border-rule px-3.5 py-2.5 text-right font-semibold"
+                    >
+                      Ch. {ordinal}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody>
+              {presentFamilies.map((family) => {
+                const first = familyMean(runs[0]?.levelId ?? "", family.id);
+                return (
+                  <tr>
+                    <th
+                      scope="row"
+                      class="sticky left-0 z-10 min-w-[220px] border-t border-rule-soft bg-surface px-3.5 py-3 text-left font-serif text-[15px] font-medium"
+                    >
+                      <span class="block">{family.label}</span>
+                      <span class="mt-0.5 block font-sans text-[12px] font-normal leading-snug text-ink-3">
+                        {first === null ? family.why : `${first.count} queries. ${family.why}`}
+                      </span>
+                    </th>
+                    {runs.map((run, index) => {
+                      const current = familyMean(run.levelId, family.id);
+                      const previous =
+                        index === 0 ? null : familyMean(runs[index - 1]?.levelId ?? "", family.id);
+                      const delta =
+                        current === null || previous === null ? null : current.ndcg - previous.ndcg;
+                      return (
+                        <td class="border-t border-rule-soft px-3.5 py-3 text-right font-mono text-[13px]">
+                          {current === null ? (
+                            <span class="text-ink-4">—</span>
+                          ) : (
+                            <span>
+                              <span>{current.ndcg.toFixed(3)}</span>
+                              {delta === null ? null : (
+                                <span
+                                  class:list={[
+                                    "ml-1 text-[11px]",
+                                    delta < 0 ? "text-red" : "text-green",
+                                  ]}
+                                >
+                                  {delta >= 0 ? "+" : "−"}
+                                  {Math.abs(delta).toFixed(3)}
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    ) : null
+  }
+
+  
+<section class="card" aria-label="Metrics per level">
+    <div class="border-b border-rule px-3.5 py-3">
+      <h2 class="h2">Average over the selected query set</h2>
+      <p class="m-0 mt-1 max-w-[72ch] font-serif text-[14px] leading-snug text-ink-2">
+        One number per chapter. Easy queries and hard queries are mixed, so a real win on a small
+        family can disappear here.
+      </p>
+    </div>
+    <div class="overflow-x-auto">
+    <table class="w-full min-w-[640px] border-collapse">
+      <thead>
+        <tr class="text-left">
+          <th scope="col" class="eyebrow w-[220px] border-b border-rule px-3.5 py-2.5 font-semibold">Level</th>
+          <th scope="col" class="eyebrow border-b border-rule px-3.5 py-2.5 font-semibold"><Terms text="NDCG@10" /></th>
+          <th scope="col" class="eyebrow border-b border-rule px-3.5 py-2.5 text-right font-semibold">vs prev</th>
+          <th scope="col" class="eyebrow border-b border-rule px-3.5 py-2.5 text-right font-semibold"><Terms text="MRR" /></th>
+          <th scope="col" class="eyebrow border-b border-rule px-3.5 py-2.5 text-right font-semibold"><Terms text="Recall@50" /></th>
+          <th scope="col" class="eyebrow border-b border-rule px-3.5 py-2.5 text-right font-semibold">p50 ms</th>
+          <th scope="col" class="eyebrow border-b border-rule px-3.5 py-2.5 text-right font-semibold">p95 ms</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          runs.map((run, index) => {
+            const { ordinal, label } = labelOf(run.levelId);
+            const delta = deltas[index] ?? null;
+            return (
+              <tr>
+                <th scope="row" class="border-t border-rule-soft px-3.5 py-3 text-left font-serif text-base font-medium">
+                  <span class="mr-2 font-mono text-xs font-normal text-ink-4">{ordinal}</span>
+                  {label}
+                </th>
+                <td class="border-t border-rule-soft px-3.5 py-3">
+                  <div class="grid min-w-[180px] grid-cols-[1fr_52px] items-center gap-2.5">
+                    <span class="h-2.5 overflow-hidden rounded-r bg-paper-2" aria-hidden="true">
+                      <span
+                        class="block h-full rounded-r bg-amber"
+                        style={`width: ${Math.round((run.ndcgAt10 / maxNdcg) * 100)}%`}
+                      />
+                    </span>
+                    <span class="text-right font-mono text-[13.5px]">{run.ndcgAt10.toFixed(3)}</span>
+                  </div>
+                </td>
+                <td class="border-t border-rule-soft px-3.5 py-3 text-right font-mono text-[12.5px]">
+                  {delta === null ? (
+                    <span class="text-ink-4">—</span>
+                  ) : (
+                    <span class:list={[delta < 0 ? "text-red" : "text-green"]}>
+                      {delta >= 0 ? "+" : "−"}{Math.abs(delta).toFixed(3)}
+                    </span>
+                  )}
+                </td>
+                <td class="border-t border-rule-soft px-3.5 py-3 text-right font-mono text-[13.5px]">{run.mrr.toFixed(3)}</td>
+                <td class="border-t border-rule-soft px-3.5 py-3 text-right font-mono text-[13.5px]">{run.recallAt50.toFixed(3)}</td>
+                <td class="border-t border-rule-soft px-3.5 py-3 text-right font-mono text-[13.5px]">{run.msPerQueryP50 < 0.1 ? "< 0.1" : run.msPerQueryP50.toFixed(1)}</td>
+                <td class="border-t border-rule-soft px-3.5 py-3 text-right font-mono text-[13.5px]">{run.msPerQueryP95 < 0.1 ? "< 0.1" : run.msPerQueryP95.toFixed(1)}</td>
+              </tr>
+            );
+          })
+        }
+      </tbody>
+    </table>
+    </div>
+    <div class="flex flex-wrap gap-5 border-t border-rule px-3.5 py-2.5 text-xs text-ink-3">
+      <span>
+        {
+          recallMoves
+            ? "Recall@50 measures only the first 50 results. Both a wider candidate set and a different top-50 order can change it."
+            : "Recall@50 is constant: these levels reorder the same candidate set. A small number means many listings are relevant and we only look at 50."
+        }
+      </span>
+      <span class="ml-auto">Query encoding excluded. Chapter 10 reuses Chapter 9 scores, so its time is incremental, not standalone latency.</span>
+    </div>
+  </section>
+<section class="card" aria-labelledby="regressions-heading">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-rule px-3.5 py-3">
+      <div class="flex items-center gap-2.5">
+        <h2 class="h2" id="regressions-heading">Per-query regressions</h2>
+        {
+          scorecard.regressions.length > 0 ? (
+            <span class="tag tag-down">{scorecard.regressions.length} queries</span>
+          ) : (
+            <span class="tag tag-ok">none</span>
+          )
+        }
+      </div>
+      <span class="text-xs text-ink-3">A higher level scored worse than the level below. Shown, not hidden.</span>
+    </div>
+    {
+      highlighted !== undefined ? (
+        <p class="m-0 border-b border-rule-soft bg-amber-tint/60 px-3.5 py-2 text-[12.5px] text-ink-2">
+          The highlighted rows are the queries where level {highlighted.ordinal} ({highlighted.label}) scored below level{" "}
+          {highlighted.ordinal - 1}. Each "compare" link shows both rankings side by side.
+        </p>
+      ) : null
+    }
+    {
+      scorecard.regressions.length === 0 ? (
+        <p class="m-0 px-3.5 py-3 text-[13px] text-ink-2">No per-query regressions against the previous level.</p>
+      ) : (
+        <ul class="m-0 list-none p-0">
+          <li class="eyebrow grid grid-cols-1 gap-1 px-3.5 pb-1 pt-2 sm:grid-cols-[150px_1fr_90px_110px] sm:gap-3">
+            <span>Level</span>
+            <span>Query</span>
+            <span class="sm:text-right">NDCG Δ</span>
+            <span class="sm:text-right">Open</span>
+          </li>
+          {scorecard.regressions.map((row) => {
+            const { ordinal, label } = labelOf(row.levelId);
+            const previous = [...labels.values()].find((entry) => String(entry.ordinal) === String(Number(ordinal) - 1));
+            const previousId = [...labels.entries()].find(([, entry]) => entry === previous)?.[0];
+            return (
+              <li
+                class:list={[
+                  "grid grid-cols-1 gap-1 border-t border-rule-soft px-3.5 py-2.5 text-[13px] sm:grid-cols-[150px_1fr_90px_110px] sm:gap-3",
+                  row.levelId === highlightLevelId ? "bg-amber-tint/60 font-semibold" : "",
+                ]}
+              >
+                <span>
+                  <span class="mr-1.5 font-mono text-xs text-ink-4">{ordinal}</span>
+                  {label}
+                </span>
+                <span class="font-mono">{row.queryText}</span>
+                <span class="text-right font-mono text-[12.5px] text-red">−{Math.abs(row.delta).toFixed(3)}</span>
+                {previousId !== undefined ? (
+                  <a
+                    class="text-right text-[12.5px] font-semibold"
+                    href={`/compare?q=${encodeURIComponent(row.queryText)}&left=${encodeURIComponent(previousId)}&right=${encodeURIComponent(row.levelId)}`}
+                  >
+                    compare →
+                  </a>
+                ) : (
+                  <span />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )
+    }
+  </section>
+</div>

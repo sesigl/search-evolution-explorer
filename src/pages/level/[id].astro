@@ -1,0 +1,199 @@
+---
+import { handleGetCodeModule } from "../../actions/get-code-module.ts";
+import type { CodeModuleView } from "../../actions/get-code-module.ts";
+import { handleGetGuidedExample } from "../../actions/get-guided-example.ts";
+import { handleGetLevelSource } from "../../actions/get-level-source.ts";
+import { handleGetLevels } from "../../actions/get-levels.ts";
+import GuidedExample from "../../components/GuidedExample.astro";
+import SearchStates from "../../components/SearchStates.astro";
+import Terms from "../../components/Terms.astro";
+import { lessonFor } from "../../content/lessons.ts";
+import { CODE_TOUR } from "../../content/tours.ts";
+import { UseCaseError } from "../../domain/search/errors.ts";
+import type { LevelSourceView } from "../../domain/levels/level-source.ts";
+import CodeExplorer from "../../islands/code/CodeExplorer.tsx";
+import Tour from "../../islands/tour/Tour.tsx";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+
+const levelId = Astro.params.id ?? "";
+const { levels } = await handleGetLevels();
+const selected = levels.find((level) => level.id === levelId);
+// An unknown level is a missing page, not a page with a placeholder heading.
+if (selected === undefined) {
+  Astro.response.status = 404;
+}
+const readable = levels.filter((level) => level.implemented);
+
+let guided = { examples: [] as ReturnType<typeof handleGetGuidedExample>["examples"] };
+try {
+  guided = handleGetGuidedExample({ levelId });
+} catch {
+  guided = { examples: [] };
+}
+let view: LevelSourceView | null = null;
+let root: CodeModuleView | null = null;
+let errorMessage: string | null = null;
+try {
+  view = await handleGetLevelSource({ levelId });
+  root = await handleGetCodeModule({ path: view.sourcePath });
+} catch (error) {
+  if (error instanceof UseCaseError) {
+    errorMessage = error.message;
+  } else {
+    throw error;
+  }
+}
+
+// Deep link: /level/<id>?file=<module path>&symbol=<name> opens that function on top of the level file.
+const requestedFile = Astro.url.searchParams.get("file");
+const requestedSymbol = Astro.url.searchParams.get("symbol");
+let initial: CodeModuleView | null = null;
+if (root !== null && requestedFile !== null && requestedFile !== root.path) {
+  try {
+    initial = await handleGetCodeModule({ path: requestedFile });
+  } catch (error) {
+    if (!(error instanceof UseCaseError)) {
+      throw error;
+    }
+  }
+}
+
+const lesson = lessonFor(levelId);
+const composed =
+  view?.composesLevelId === null || view === null
+    ? null
+    : levels.find((level) => level.id === view?.composesLevelId) ?? null;
+---
+
+<BaseLayout
+  title={selected === undefined ? "Unknown level — Search Evolution Explorer" : `${selected.label} source — Search Evolution Explorer`}
+  trail={`/level/${levelId}`}
+  hasTour={root !== null}
+>
+  <div class="grid items-start gap-6 px-7 pb-8 pt-6 lg:grid-cols-[232px_minmax(0,1fr)]">
+    <nav class="flex flex-col gap-0.5" aria-label="Source per level">
+      <span class="eyebrow px-2.5 pb-2 tracking-[0.06em]">Source per level</span>
+      {
+        readable.map((level) => (
+          <a
+            href={`/level/${encodeURIComponent(level.id)}`}
+            aria-current={level.id === levelId ? "page" : undefined}
+            class:list={[
+              "flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-[13px] text-ink no-underline hover:bg-paper-2 hover:text-ink",
+              level.id === levelId ? "border-rule bg-surface font-semibold" : "border-transparent",
+            ]}
+          >
+            <span
+              class:list={[
+                "inline-flex h-[22px] w-[22px] items-center justify-center rounded-full font-mono text-[11.5px] font-semibold",
+                level.id === levelId ? "bg-amber text-surface" : "bg-paper-3 text-ink-2",
+              ]}
+            >
+              {level.ordinal}
+            </span>
+            {level.label}
+          </a>
+        ))
+      }
+      <p class="note mt-4">
+        <strong class="text-ink">No teaching copy.</strong> This is the exact file that ran your last
+        query, read back from disk. The numbered notes sit beside the code; nothing in the code was
+        simplified for display.
+      </p>
+      <p class="note mt-2">
+        <strong class="text-ink">How to read it.</strong> Start with note 1 and follow the numbers.
+        When a line calls a function you want to understand, click it: the function opens here, and
+        Back (or Escape) returns you to the line you left.
+      </p>
+    </nav>
+
+    <div class="flex min-w-0 flex-col gap-4">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 class="m-0 font-serif text-[28px] font-medium tracking-[-0.015em]">
+            {selected === undefined ? "Unknown level" : `Level ${selected.ordinal} · ${selected.label}`}
+          </h1>
+          <div class="mt-0.5 font-mono text-[12.5px] text-ink-3">
+            {view?.sourcePath ?? levelId}
+            {view !== null ? ` · ${view.lineCount} lines` : ""}
+          </div>
+        </div>
+        <a class="btn-ghost" href={`/search?level=${encodeURIComponent(levelId)}`}>Back to search</a>
+      </div>
+
+      <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_240px]">
+        {
+          lesson !== undefined ? (
+            <section class="card-warm flex flex-col gap-2 px-[18px] py-4">
+              <h2 class="h2">{lesson.question}</h2>
+              <p class="m-0 font-serif text-[15px] leading-[1.55]">
+                <Terms text={lesson.steps.find((step) => step.kind === "solution")?.text ?? ""} />
+              </p>
+              <p class="m-0 text-[13px] text-ink-2">
+                <strong class="text-ink">Where to look:</strong> <Terms text={lesson.codeFocus} />
+              </p>
+            </section>
+          ) : null
+        }
+        <GuidedExample examples={guided.examples} levelId={levelId} />
+        {
+          selected !== undefined ? (
+            <section class="card flex flex-col gap-1.5 px-[18px] py-4">
+              <h2 class="h2 mb-1.5">Prerequisites</h2>
+              {composed !== null && composed.ordinal > 0 ? (
+                <div class="flex items-center justify-between gap-2.5 py-2 text-[13px]">
+                  <span>Reuses the ranking from</span>
+                  <a class="tag tag-score no-underline" href={`/level/${encodeURIComponent(composed.id)}`}>
+                    Chapter {composed.ordinal}
+                  </a>
+                </div>
+              ) : null}
+              <div class="flex items-center justify-between gap-2.5 py-2 text-[13px]">
+                <span>Foundation · Inverted index</span>
+                <span class="tag tag-ok">built at start</span>
+              </div>
+              <div class="flex items-center justify-between gap-2.5 border-t border-rule-soft py-2 text-[13px]">
+                <span>Declared artifacts</span>
+                {selected.prerequisiteState === "ready" ? (
+                  <span class="tag tag-ok">ready</span>
+                ) : (
+                  <span class="tag tag-warn">{selected.prerequisiteState}</span>
+                )}
+              </div>
+              {selected.rebuildCommand !== null ? (
+                <code class="mt-1 self-start rounded-md bg-paper px-2.5 py-1.5 font-mono text-xs">
+                  {selected.rebuildCommand}
+                </code>
+              ) : null}
+            </section>
+          ) : null
+        }
+      </div>
+
+      {errorMessage !== null ? <SearchStates kind="unavailable" message={errorMessage} /> : null}
+      {
+        root !== null && view !== null ? (
+          <CodeExplorer
+            client:load
+            root={root}
+            rootLabel={root.fileName}
+            compositionLine={view.compositionPointLine}
+            composesLabel={composed === null ? null : `level ${composed.ordinal}`}
+            initial={initial}
+            initialSymbol={initial === null ? null : requestedSymbol}
+          />
+        ) : null
+      }
+    </div>
+  </div>
+  {
+    root !== null ? (
+      <Tour
+        client:load
+        tour={CODE_TOUR}
+        autoStart={Astro.url.searchParams.get("tour") === "1"}
+        startOnFirstVisit={initial === null}
+      />
+    ) : null
+  }
+</BaseLayout>

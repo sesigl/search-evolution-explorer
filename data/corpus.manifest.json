@@ -1,0 +1,63 @@
+{
+  "source": "WANDS (Wayfair ANnotation Dataset)",
+  "url": "https://github.com/wayfair/WANDS",
+  "license": "MIT",
+  "productCount": 42994,
+  "categoryCount": 98,
+  "topCategories": [
+    {
+      "categoryId": "Furniture",
+      "count": 16039
+    },
+    {
+      "categoryId": "Home Improvement",
+      "count": 4686
+    },
+    {
+      "categoryId": "Décor & Pillows",
+      "count": 4612
+    },
+    {
+      "categoryId": "Outdoor",
+      "count": 3394
+    },
+    {
+      "categoryId": "Storage & Organization",
+      "count": 2175
+    },
+    {
+      "categoryId": "Lighting",
+      "count": 2072
+    },
+    {
+      "categoryId": "Rugs",
+      "count": 2002
+    },
+    {
+      "categoryId": "Bed & Bath",
+      "count": 1865
+    },
+    {
+      "categoryId": "Kitchen & Tabletop",
+      "count": 1615
+    },
+    {
+      "categoryId": "Baby & Kids",
+      "count": 1204
+    },
+    {
+      "categoryId": "School Furniture and Supplies",
+      "count": 455
+    },
+    {
+      "categoryId": "Appliances",
+      "count": 307
+    }
+  ],
+  "syntheticOverlay": {
+    "priceCents": "WANDS has no price. Deterministic per-product value inside a per-category band; used by the price-fit chapter.",
+    "postedAt": "WANDS has no date. Deterministic per-product value in the 180 days before the fixed EVAL_NOW; used by the recency chapter.",
+    "location": "Constant 'Berlin'. WANDS has no location."
+  },
+  "corpusHash": "0f33b4e040fe9a607846ac0e227326fe7d814b223705c4001b3875128788f873"
+}

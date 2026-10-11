@@ -1,0 +1,13 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/pages/**/*.astro!",
+    "src/actions/index.ts!",
+    "src/di.ts!",
+    "scripts/**/*.ts!",
+    "tools/**/*.ts!"
+  ],
+  "project": ["src/**/*.{ts,tsx,astro}", "tools/**/*.ts", "scripts/**/*.ts"],
+  "ignoreBinaries": ["similarity-ts"],
+  "ignoreDependencies": ["tailwindcss"]
+}

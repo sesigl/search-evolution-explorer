@@ -1,0 +1,27 @@
+{
+  "variant": "naive",
+  "featureNames": [
+    "bm25",
+    "categoryMatch",
+    "priceFit",
+    "recency",
+    "titleQuality",
+    "termOverlap"
+  ],
+  "weights": [
+    41.922282537090354,
+    0.9137083029181123,
+    0,
+    0.8860072056067267,
+    -0.02588443970585299,
+    0.3154199157971432
+  ],
+  "bias": 419962.72247739986,
+  "training": {
+    "seed": 42,
+    "epochs": 16,
+    "learningRate": 0.03,
+    "pairCount": 2123970,
+    "clickLogHash": "4f994b2d3d826388953e264ece4c9dc081f51a6963bb638772c89caffeb1e968"
+  }
+}

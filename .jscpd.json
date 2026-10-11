@@ -1,0 +1,9 @@
+{
+  "minTokens": 50,
+  "minLines": 5,
+  "threshold": 0,
+  "format": "typescript",
+  "ignore": ["**/*.spec.ts", "**/*.astro"],
+  "ignorePattern": [".*\\.spec\\.ts$", ".*\\.astro$"],
+  "reporters": ["console"]
+}

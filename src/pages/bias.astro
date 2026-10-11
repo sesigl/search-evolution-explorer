@@ -1,0 +1,50 @@
+---
+import { handleGetBiasLesson } from "../actions/get-bias-lesson.ts";
+import { handleGetItemTitle } from "../actions/get-item-title.ts";
+import BiasLessonView from "../components/BiasLesson.astro";
+import SearchStates from "../components/SearchStates.astro";
+import { BIAS_TOUR } from "../content/tours.ts";
+import type { BiasLesson } from "../domain/ranking/bias-lesson.ts";
+import { UseCaseError } from "../domain/search/errors.ts";
+import Tour from "../islands/tour/Tour.tsx";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+let lesson: BiasLesson | null = null;
+let errorMessage: string | null = null;
+try {
+  lesson = await handleGetBiasLesson();
+} catch (error) {
+  if (error instanceof UseCaseError) {
+    errorMessage = error.message;
+  } else {
+    throw error;
+  }
+}
+
+const titles: Record<string, string> = {};
+for (const example of lesson?.clickedBaitExamples ?? []) {
+  if (titles[example.itemId] === undefined) {
+    titles[example.itemId] = await handleGetItemTitle({ itemId: example.itemId });
+  }
+}
+for (const entry of lesson?.logExamples ?? []) {
+  for (const item of entry.items) {
+    if (titles[item.itemId] === undefined) {
+      titles[item.itemId] = await handleGetItemTitle({ itemId: item.itemId });
+    }
+  }
+}
+---
+
+<BaseLayout title="Position bias — Search Evolution Explorer" trail="/bias" hasTour>
+  <div class="px-7 pb-8 pt-7">
+    {errorMessage !== null ? <SearchStates kind="unavailable" message={errorMessage} /> : null}
+    {lesson !== null ? <BiasLessonView lesson={lesson} titles={titles} /> : null}
+  </div>
+  <Tour
+    client:load
+    tour={BIAS_TOUR}
+    autoStart={Astro.url.searchParams.get("tour") === "1"}
+    startOnFirstVisit={false}
+  />
+</BaseLayout>

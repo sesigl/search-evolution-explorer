@@ -1,0 +1,49 @@
+---
+import type { RetrievalSignal } from "../domain/types/ranking.ts";
+import { signalInfo } from "../islands/search/format.ts";
+
+interface Props {
+  signals: readonly RetrievalSignal[];
+  /** Largest absolute value per signal name across the result list, so bars share one scale. */
+  maxBySignal: ReadonlyMap<string, number>;
+}
+
+/** Signals that decide which listings are candidates paint blue; everything that orders them paints amber. */
+const MATCHING_SIGNALS = new Set(["bm25", "vectorSimilarity"]);
+
+const { signals, maxBySignal } = Astro.props;
+const jointReranking = signals.some((signal) => signal.name === "crossEncoder");
+
+function widthPercent(signal: RetrievalSignal): number {
+  const max = maxBySignal.get(signal.name) ?? Math.abs(signal.value);
+  if (max === 0) {
+    return 0;
+  }
+  return Math.max(3, Math.round((Math.abs(signal.value) / max) * 100));
+}
+---
+
+{
+  signals.length > 0 ? (
+    <ul class="m-0 flex list-none flex-col gap-2 rounded-lg bg-paper px-3.5 py-3 p-0">
+      {signals.map((signal) => (
+        <li class="grid grid-cols-[120px_1fr_64px] items-center gap-x-2.5 gap-y-0.5 text-xs">
+          <span class="font-medium text-ink-2">{signalInfo(signal.name).label}</span>
+          <span class="h-1.5 overflow-hidden rounded-[3px] bg-paper-2" aria-hidden="true">
+            <span
+              class:list={[
+                "block h-full rounded-[3px]",
+                jointReranking
+                  ? signal.name === "crossEncoder" || signal.weight !== undefined ? "bg-amber" : "bg-rule-2"
+                  : MATCHING_SIGNALS.has(signal.name) ? "bg-blue" : "bg-amber",
+              ]}
+              style={`width: ${widthPercent(signal)}%`}
+            />
+          </span>
+          <span class="text-right font-mono text-ink">{signal.value.toFixed(3)}{signal.weight !== undefined ? <small class="block">× {signal.weight}</small> : null}</span>
+          <span class="col-span-3 text-[11.5px] text-ink-3">{signalInfo(signal.name).meaning || signal.explanation}</span>
+        </li>
+      ))}
+    </ul>
+  ) : null
+}

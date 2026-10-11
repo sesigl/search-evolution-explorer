@@ -1,0 +1,175 @@
+---
+import type { CompareOutput } from "../domain/comparison/compare-levels.ts";
+import { scoreLabelFor, signalInfo } from "../islands/search/format.ts";
+import ResultList from "./ResultList.astro";
+
+interface Props {
+  comparison: CompareOutput;
+  now: Date;
+}
+
+const { comparison, now } = Astro.props;
+const { left, right } = comparison;
+
+const titleById = new Map<string, string>();
+for (const result of [...left.results, ...right.results]) {
+  titleById.set(result.item.id, result.item.title);
+}
+function titleOf(itemId: string): string {
+  return titleById.get(itemId) ?? itemId;
+}
+
+const membershipChanges = comparison.membershipKind === "matching";
+function chapterName(level: { ordinal: number }): string {
+  return level.ordinal === 0 ? "the introduction" : `Chapter ${level.ordinal}`;
+}
+const jointReranking =
+  left.level.id === "level-5-cross-encoder" || right.level.id === "level-5-cross-encoder";
+const shortListComparison =
+  jointReranking &&
+  (left.level.id === "level-4-hybrid" || right.level.id === "level-4-hybrid");
+/** The cross-encoder is the reranker; the other side supplies the short list it reorders. */
+const reranker = left.level.id === "level-5-cross-encoder" ? left : right;
+const rerankBase = reranker === left ? right : left;
+/** Entered/exited rows are a matching change when matching changed, else a top-10 reshuffle. */
+const causeLabel = membershipChanges ? "matching" : "scoring";
+const causeClass = membershipChanges ? "text-blue-deep" : "text-amber-deep";
+const topTen = `In the top 10: ${comparison.entered.length} entered, ${comparison.exited.length} exited, ${comparison.moved.length} moved.`;
+const verdict = comparison.identical
+  ? `${chapterName(right.level)} produces the same ranking as ${chapterName(left.level)} for this query.`
+  : shortListComparison
+    ? `Chapter ${reranker.level.ordinal} reranks chapter ${rerankBase.level.ordinal}'s first 50 candidates. ${topTen}`
+  : `Chapter ${right.level.ordinal} ${membershipChanges ? "changes which listings match" : "keeps the same candidate set"}. ${topTen}`;
+const explanation = comparison.identical
+  ? "This query does not distinguish the two chapters."
+  : shortListComparison
+    ? "The joint model changes the order inside the short list. Entries and exits below refer to the displayed top 10, not new retrieval. Recall@50 stays the same. The two score scales cannot be compared numerically."
+  : membershipChanges
+    ? `Chapter ${right.level.ordinal} changes matching, so listings can enter or leave the candidate set. The counts above are about the top 10. Entered and exited rows are marked in the lists.`
+    : `Chapter ${right.level.ordinal} changes scoring only: the candidate set is unchanged, so no listing can enter or leave it. The counts above are about the top 10, where listings rose into it or fell out of it. Every movement is a change in the signals.`;
+---
+
+<div class="flex flex-col gap-[18px]">
+  <section class="card grid items-center gap-4 px-[18px] py-3.5 lg:grid-cols-[1fr_auto]">
+    <div class="flex flex-col gap-1">
+      <span class="font-serif text-xl font-medium tracking-[-0.005em]">{verdict}</span>
+      <span class="text-[13px] text-ink-2">
+        {explanation}
+        {
+          comparison.identical && comparison.suggestedDistinguishingQuery !== null ? (
+            <>
+              {" "}Try{" "}
+              <a
+                href={`/compare?q=${encodeURIComponent(comparison.suggestedDistinguishingQuery)}&left=${encodeURIComponent(left.level.id)}&right=${encodeURIComponent(right.level.id)}`}
+                class="font-semibold"
+              >
+                "{comparison.suggestedDistinguishingQuery}"
+              </a>
+              , which does.
+            </>
+          ) : null
+        }
+      </span>
+    </div>
+    <div class="flex gap-[18px] text-[12.5px] text-ink-3">
+      <span class="flex flex-col items-center"><strong class="font-mono text-xl text-green">{comparison.entered.length}</strong>entered</span>
+      <span class="flex flex-col items-center"><strong class="font-mono text-xl text-red">{comparison.exited.length}</strong>exited</span>
+      <span class="flex flex-col items-center"><strong class="font-mono text-xl text-ink">{comparison.moved.length}</strong>moved</span>
+    </div>
+  </section>
+
+  <div class="grid gap-[18px] lg:grid-cols-2">
+    {
+      [left, right].map((side, index) => {
+        const exitedIds = new Set(comparison.exited.map((entry) => entry.itemId));
+        const enteredIds = new Set(comparison.entered.map((entry) => entry.itemId));
+        const marks = index === 0 ? exitedIds : enteredIds;
+        const markLabel = index === 0 ? "exits" : "entered";
+        return (
+          <section class="card" aria-label={`${side.level.label} results`}>
+            <div class="flex items-center justify-between border-b border-rule px-3.5 py-3">
+              <div class="flex items-center gap-2.5">
+                <span
+                  class:list={[
+                    "inline-flex h-6 w-6 items-center justify-center rounded-full font-mono text-xs font-semibold text-surface",
+                    index === 0 ? "bg-ink" : "bg-amber",
+                  ]}
+                >
+                  {side.level.ordinal}
+                </span>
+                <h2 class="h2">{side.level.label}</h2>
+              </div>
+              <span class="text-xs text-ink-3">
+                {side.candidateWidth} candidates
+                {marks.size > 0 ? (
+                  <>
+                    {" · "}
+                    <span class:list={["tag", index === 0 ? "tag-down" : "tag-ok"]}>
+                      {marks.size} {markLabel}
+                    </span>
+                  </>
+                ) : null}
+              </span>
+            </div>
+            <ResultList results={side.results} now={now} scoreLabel={scoreLabelFor(side.level.id)} openFirst={false} compact={true} />
+          </section>
+        );
+      })
+    }
+  </div>
+
+  {
+    !comparison.identical ? (
+      <section class="card" aria-labelledby="movements-heading">
+        <div class="flex items-center justify-between border-b border-rule px-3.5 py-3">
+          <h2 class="h2" id="movements-heading">What changed, and which signal did it</h2>
+          <span class="text-xs text-ink-3">{jointReranking ? "Joint relevance replaces the earlier score" : "What changed for this listing"}</span>
+        </div>
+        <ul class="m-0 list-none p-0">
+          {comparison.entered.map((entry) => (
+            <li class="grid items-center gap-3 border-t border-rule-soft px-3.5 py-2.5 text-[13px] first:border-t-0 lg:grid-cols-[1fr_140px_1fr]">
+              <span>
+                <span class="block font-serif text-[15.5px] font-medium">{titleOf(entry.itemId)}</span>
+                <span class="tag tag-ok mt-1">entered</span>
+              </span>
+              <span class={`text-center font-mono text-[12.5px] ${causeClass}`}>{causeLabel}</span>
+              <span class="text-[12.5px] text-ink-2">{entry.reason}</span>
+            </li>
+          ))}
+          {comparison.exited.map((entry) => (
+            <li class="grid items-center gap-3 border-t border-rule-soft px-3.5 py-2.5 text-[13px] first:border-t-0 lg:grid-cols-[1fr_140px_1fr]">
+              <span>
+                <span class="block font-serif text-[15.5px] font-medium">{titleOf(entry.itemId)}</span>
+                <span class="tag tag-down mt-1">exited</span>
+              </span>
+              <span class={`text-center font-mono text-[12.5px] ${causeClass}`}>{causeLabel}</span>
+              <span class="text-[12.5px] text-ink-2">{entry.reason}</span>
+            </li>
+          ))}
+          {comparison.moved.map((entry) => (
+            <li class="grid items-center gap-3 border-t border-rule-soft px-3.5 py-2.5 text-[13px] first:border-t-0 lg:grid-cols-[1fr_140px_1fr]">
+              <span>
+                <span class="block font-serif text-[15.5px] font-medium">{titleOf(entry.itemId)}</span>
+                <span class:list={["tag mt-1", entry.toPosition < entry.fromPosition ? "tag-ok" : "tag-down"]}>
+                  {entry.toPosition < entry.fromPosition ? "↑" : "↓"} {entry.fromPosition} → {entry.toPosition}
+                </span>
+              </span>
+              <span class="text-center font-mono text-[12.5px] text-amber-deep">
+                {signalInfo(entry.attributedSignal).label}
+              </span>
+              <span class="text-[12.5px] text-ink-2">
+                {entry.attributedSignal === "candidateCompetition"
+                  ? signalInfo(entry.attributedSignal).meaning
+                  : entry.attributedSignal === "twoTowerSimilarity"
+                  ? "The joint score is reused. The weighted trained similarity changes the final score; its weight was selected on validation queries."
+                  : entry.attributedSignal === "crossEncoder"
+                  ? "The cross-encoder's joint relevance score sets the final order. Retrieval signals are context only."
+                  : <>The signal <code class="rounded bg-amber-soft px-1.5 py-px font-mono text-[11.5px] text-amber-deep">{signalInfo(entry.attributedSignal).label}</code> changed most between the two levels for this listing.</>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null
+  }
+</div>

@@ -1,0 +1,54 @@
+---
+interface Example {
+  queryText: string;
+  expectedDifference: string;
+  comparedWithLevelId: string;
+  comparedWithOrdinal: number | null;
+}
+
+interface Props {
+  examples: readonly Example[];
+  levelId: string;
+}
+
+const { examples, levelId } = Astro.props;
+---
+
+<section class="card-warm flex flex-col gap-2.5 px-[18px] py-4" aria-labelledby="guided-heading">
+  <div class="flex items-center justify-between">
+    <h2 class="h2" id="guided-heading">Guided example</h2>
+  </div>
+  {
+    examples.length === 0 ? (
+      <p class="m-0 font-serif text-[15px] text-ink-2">
+        This level has no guided example. Evaluation and forward previews are read, not run.
+      </p>
+    ) : (
+      examples.map((example) => (
+        <article class="flex flex-col gap-2.5">
+          <div class="flex items-center gap-2.5">
+            <span class="chip border border-rule bg-surface px-2.5 py-[5px] text-sm">
+              {example.queryText}
+            </span>
+            <span class="text-[12.5px] text-ink-3">{example.comparedWithOrdinal === 0 || example.comparedWithOrdinal === null ? "vs the introduction" : `vs chapter ${example.comparedWithOrdinal}`}</span>
+          </div>
+          <p class="m-0 font-serif text-[15px] text-ink">{example.expectedDifference}</p>
+          <div class="flex gap-2">
+            <a
+              class="btn-ghost"
+              href={`/search?q=${encodeURIComponent(example.queryText)}&level=${encodeURIComponent(levelId)}&stemming=1&synonyms=1&variants=1`}
+            >
+              Run it here
+            </a>
+            <a
+              class="btn-ghost"
+              href={`/compare?q=${encodeURIComponent(example.queryText)}&left=${encodeURIComponent(example.comparedWithLevelId)}&right=${encodeURIComponent(levelId)}`}
+            >
+              Open in compare
+            </a>
+          </div>
+        </article>
+      ))
+    )
+  }
+</section>

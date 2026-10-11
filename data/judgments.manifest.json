@@ -1,0 +1,16 @@
+{
+  "source": "WANDS human relevance labels (Exact/Partial/Irrelevant)",
+  "labelMapping": {
+    "Exact": 3,
+    "Partial": 1,
+    "Irrelevant": 0
+  },
+  "queryCount": 246,
+  "judgmentCount": 113897,
+  "gradeCounts": {
+    "1": 91920,
+    "3": 21977
+  },
+  "selection": "Queries with >=3 Exact and >=5 Irrelevant, plus 16 always-included teaching queries, capped at 240.",
+  "corpusHash": "0f33b4e040fe9a607846ac0e227326fe7d814b223705c4001b3875128788f873"
+}

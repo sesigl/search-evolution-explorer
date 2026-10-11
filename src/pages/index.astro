@@ -1,0 +1,247 @@
+---
+import { handleGetFirstExperiment } from "../actions/get-first-experiment.ts";
+import { handleGetLevels } from "../actions/get-levels.ts";
+import Terms from "../components/Terms.astro";
+import { lessonFor } from "../content/lessons.ts";
+import FirstExperiment from "../islands/home/FirstExperiment.tsx";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const [{ levels }, experiment] = await Promise.all([handleGetLevels(), handleGetFirstExperiment()]);
+const intro = levels.find((level) => level.ordinal === 0);
+const chapters = levels.filter((level) => level.ordinal > 0);
+const shipped = chapters.filter((level) => level.implemented).length;
+const introHref = "/search?level=level-0-evaluation";
+const tourHref = "/search?q=sofa&level=level-1-recency&tour=1";
+
+const moves = [
+  {
+    step: "1",
+    title: "Read a little",
+    text: "Every chapter has the same four short steps: start simple, where it breaks, the fix, what it is called. The term comes last, after you saw the behaviour.",
+  },
+  {
+    step: "2",
+    title: "Press, then look",
+    text: `Each step has a play button that runs a real query against ${experiment.corpusSize} listings. The list on the page changes, and a note tells you why.`,
+  },
+  {
+    step: "3",
+    title: "Check the score",
+    text: "Every chapter ends with a checkpoint: the same answer key grades this chapter and the one before it, and one number tells you whether the search got better. The introduction shows how that number is built.",
+  },
+  {
+    step: "4",
+    title: "Read the code that ran",
+    text: "Each chapter ends in its own source file, with numbered notes beside the lines that matter. Open any function it calls, and come back with one key.",
+  },
+];
+---
+
+<BaseLayout title="Search Evolution Explorer">
+  <div class="grid items-start gap-10 px-4 pb-8 pt-10 sm:px-7 lg:grid-cols-[minmax(0,1fr)_440px] lg:gap-14 lg:px-[72px] lg:pt-14">
+    <div class="flex flex-col gap-5">
+      <span class="eyebrow text-xs tracking-[0.08em]">An interactive book about how search works</span>
+      <h1
+        class="m-0 max-w-[16ch] font-serif text-[44px] font-medium leading-[1.05] tracking-[-0.02em] text-balance sm:text-[56px]"
+      >
+        Hello. This is a book you can run.
+      </h1>
+      <p class="m-0 max-w-[54ch] font-serif text-[19px] leading-normal text-ink-2">
+        It explains how a marketplace search engine works, in an introduction and eleven chapters.
+        Each chapter is a small search engine that fixes one weakness of the chapter before it.
+        You read a little, you press a button and watch real results change, you check the score,
+        then you read the code that did it.
+      </p>
+      <div class="mt-1 flex flex-wrap items-center gap-2.5">
+        <a class="btn" href={tourHref}>
+          Take the two-minute tour
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M5 12h14"></path>
+            <path d="m13 6 6 6-6 6"></path>
+          </svg>
+        </a>
+        <a id="skip-tour" class="btn-ghost h-11 px-[18px] text-[14.5px]" href={introHref}>Skip the tour, start reading</a>
+      </div>
+      <a
+        id="continue-reading"
+        hidden
+        href="/search"
+        data-ordinals={JSON.stringify(Object.fromEntries(levels.map((level) => [level.id, level.ordinal])))}
+        class="card-warm flex items-center justify-between gap-3 px-4 py-3 text-ink no-underline hover:text-ink"
+      >
+        <span>
+          <span class="eyebrow block">Welcome back</span>
+          <span class="text-[14px]">Continue where you left off: <strong id="continue-label"></strong></span>
+        </span>
+        <span class="text-[13px] font-semibold text-amber-deep">Continue →</span>
+      </a>
+      <div class="mt-1 flex flex-wrap gap-7 text-[13px] text-ink-3">
+        <span><strong class="font-mono text-ink">{shipped}</strong> chapters you can run</span>
+        <span><strong class="font-mono text-ink">{chapters.length - shipped}</strong> chapters read-only</span>
+        <span><strong class="font-mono text-ink">{experiment.corpusSize}</strong> catalog listings</span>
+      </div>
+    </div>
+
+    <FirstExperiment
+      client:load
+      query={experiment.query}
+      corpusSize={experiment.corpusSize}
+      off={experiment.off}
+      on={experiment.on}
+      continueHref={tourHref}
+    />
+  </div>
+
+  <section class="px-4 pb-10 sm:px-7 lg:px-[72px]" aria-labelledby="how-heading">
+    <h2 id="how-heading" class="m-0 mb-3 font-serif text-[22px] font-medium tracking-[-0.01em]">
+      How to read this book
+    </h2>
+    <ol class="m-0 grid list-none gap-3 p-0 md:grid-cols-2 xl:grid-cols-4">
+      {
+        moves.map((move) => (
+          <li class="card flex gap-3 px-4 py-3.5">
+            <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber font-mono text-[12.5px] font-semibold text-surface">
+              {move.step}
+            </span>
+            <span>
+              <span class="block font-serif text-[16.5px] font-semibold">{move.title}</span>
+              <span class="mt-0.5 block text-[13.5px] leading-snug text-ink-2">{move.text}</span>
+            </span>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <section class="px-4 pb-14 sm:px-7 lg:px-[72px]" aria-labelledby="contents-heading">
+    <div class="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+      <h2 id="contents-heading" class="m-0 font-serif text-[26px] font-medium tracking-[-0.01em]">Contents</h2>
+      <span class="text-[13px] text-ink-3">
+        <span class="tag tag-match">matching</span> = which listings are found at all &nbsp;
+        <span class="tag tag-score">scoring</span> = the order they are shown in
+      </span>
+    </div>
+    <ol class="card m-0 list-none overflow-hidden p-0">
+      {
+        intro !== undefined ? (
+          <li class="bg-surface-warm" data-chapter={intro.id}>
+            <a
+              href={introHref}
+              class="grid grid-cols-[44px_1fr] items-center gap-[14px] px-4 py-4 text-ink no-underline hover:bg-[#fcf9f2] hover:text-ink sm:grid-cols-[44px_1fr_auto] sm:gap-[18px] sm:px-[22px]"
+            >
+              <span class="flex h-7 w-11 items-center justify-center self-center rounded-full border-[1.5px] border-amber font-mono text-[10px] font-semibold uppercase tracking-[0.04em] text-amber-deep">
+                Intro
+              </span>
+              <span class="min-w-0">
+                <span class="block font-serif text-[19px] font-medium tracking-[-0.005em] sm:text-[21px]">
+                  <span class="text-ink-4">Introduction.</span> {lessonFor(intro.id)?.question ?? intro.label}
+                </span>
+                <span class="mt-0.5 block text-sm text-ink-2">
+                  <span class="font-semibold text-ink-3">How we keep score.</span>{" "}
+                  <Terms text="An answer key grades every result, and one number says how good a ranking is. Every chapter ends with that number." />
+                </span>
+              </span>
+              <span class="flex flex-wrap items-center gap-1.5 max-sm:col-start-2">
+                <span class="tag tag-ok" data-opened hidden>opened</span>
+                <span class="tag tag-score">read first · 5 min</span>
+              </span>
+            </a>
+          </li>
+        ) : null
+      }
+      {
+        chapters.map((level) => (
+          <li class="border-t border-rule-soft first:border-t-0" data-chapter={level.id}>
+            <a
+              href={`/search?level=${encodeURIComponent(level.id)}`}
+              class="grid grid-cols-[44px_1fr] items-center gap-[14px] px-4 py-4 text-ink no-underline hover:bg-[#fcf9f2] hover:text-ink sm:grid-cols-[44px_1fr_auto] sm:gap-[18px] sm:px-[22px]"
+            >
+              <span
+                class:list={[
+                  "flex h-9 w-9 items-center justify-center rounded-full font-mono text-[15px] font-semibold",
+                  level.implemented ? "bg-ink text-surface" : "border-[1.5px] border-dashed border-ink-5 text-ink-4",
+                ]}
+              >
+                {level.ordinal}
+              </span>
+              <span class="min-w-0">
+                <span class:list={["block font-serif text-[19px] font-medium tracking-[-0.005em] sm:text-[21px]", level.implemented ? "" : "text-ink-3"]}>
+                  <span class="text-ink-4">Chapter {level.ordinal}.</span> {lessonFor(level.id)?.question ?? level.label}
+                </span>
+                <span class="mt-0.5 block text-sm text-ink-2">
+                  <span class="font-semibold text-ink-3">{level.label}.</span>{" "}
+                  <Terms text={level.capability} />
+                </span>
+              </span>
+              <span class="flex flex-wrap items-center gap-1.5 max-sm:col-start-2">
+                <span class="tag tag-ok" data-opened hidden>opened</span>
+                {!level.implemented ? (
+                  <span class="tag tag-preview">read-only</span>
+                ) : (
+                  <>
+                    {level.changes !== "scoring" ? <span class="tag tag-match">matching</span> : null}
+                    {level.changes !== "matching" ? <span class="tag tag-score">scoring</span> : null}
+                  </>
+                )}
+              </span>
+            </a>
+          </li>
+        ))
+      }
+    </ol>
+    <p class="mt-3 text-[13px] text-ink-3">
+      Other pages: <a href="/compare">Compare</a> two chapters on one query, the <a href="/scorecard">Scorecard</a> over all
+      test queries, <a href="/bias">Position bias</a>, the trap of learning from clicks, and <a href="/beyond">Beyond</a>,
+      where this book stops.
+    </p>
+  </section>
+
+  <script>
+    // Reading progress lives in this browser only: mark opened chapters and offer to continue.
+    function readJson(key: string): unknown {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw === null ? null : JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+    // A reader who skips the tour here must not get it on the first chapter page either.
+    document.getElementById("skip-tour")?.addEventListener("click", () => {
+      try {
+        localStorage.setItem("see:tour:search", "done");
+      } catch {
+        // Storage is a convenience only.
+      }
+    });
+    const visited = readJson("see:visited");
+    if (Array.isArray(visited)) {
+      for (const id of visited) {
+        document
+          .querySelector(`[data-chapter="${String(id)}"] [data-opened]`)
+          ?.removeAttribute("hidden");
+      }
+    }
+    const place = readJson("see:place") as { levelId?: string; query?: string; href?: string } | null;
+    const banner = document.getElementById("continue-reading");
+    const label = document.getElementById("continue-label");
+    if (place !== null && typeof place.href === "string" && banner instanceof HTMLAnchorElement && label !== null) {
+      const ordinals = JSON.parse(banner.dataset.ordinals ?? "{}") as Record<string, number>;
+      const ordinal = place.levelId !== undefined && place.levelId in ordinals ? String(ordinals[place.levelId]) : "?";
+      const where = ordinal === "0" ? "the introduction" : `chapter ${ordinal}`;
+      banner.href = place.href;
+      label.textContent = place.query && ordinal !== "0" ? `${where}, “${place.query}”` : where;
+      banner.hidden = false;
+    }
+  </script>
+</BaseLayout>

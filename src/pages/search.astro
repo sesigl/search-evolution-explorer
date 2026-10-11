@@ -1,0 +1,40 @@
+---
+import { handleListTeachingQueries } from "../actions/grade-query.ts";
+import { handleSearchWorkbench, parseWorkbenchRequest } from "../actions/search-workbench.ts";
+import { SEARCH_TOUR } from "../content/tours.ts";
+import SearchWorkbench from "../islands/search/SearchWorkbench.tsx";
+import Tour from "../islands/tour/Tour.tsx";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const request = parseWorkbenchRequest(Astro.url.searchParams);
+const [{ levels, state }, teachingQueries] = await Promise.all([
+  handleSearchWorkbench(request),
+  handleListTeachingQueries(),
+]);
+const trail = `/search?q=${encodeURIComponent(state.query)}&level=${encodeURIComponent(state.levelId)}`;
+// The tour offers itself where the search layout is shown. It auto-starts on a first
+// visit only over a blank workbench: arriving with a query means "show my results",
+// and a centred welcome card must not cover the results a link promised.
+const tourable = state.mode === "search";
+const tourFirstVisit = request.query === "";
+---
+
+<BaseLayout title="Search — Search Evolution Explorer" trail={trail} hasTour={tourable}>
+  <SearchWorkbench
+    client:load
+    levels={levels}
+    initial={state}
+    teachingQueries={teachingQueries}
+    gradeLevelId={Astro.url.searchParams.get("grade")}
+  />
+  {
+    tourable ? (
+      <Tour
+        client:load
+        tour={SEARCH_TOUR}
+        autoStart={Astro.url.searchParams.get("tour") === "1"}
+        startOnFirstVisit={tourFirstVisit}
+      />
+    ) : null
+  }
+</BaseLayout>

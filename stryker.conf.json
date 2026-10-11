@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "mutate": [
+    "src/domain/index/**/*.ts",
+    "!src/domain/index/**/*.spec.ts",
+    "src/domain/ranking/**/*.ts",
+    "!src/domain/ranking/**/*.spec.ts",
+    "src/domain/evaluation/**/*.ts",
+    "!src/domain/evaluation/**/*.spec.ts"
+  ],
+  "thresholds": {
+    "high": 90,
+    "low": 85,
+    "break": 85
+  },
+  "reporters": ["clear-text", "progress"],
+  "coverageAnalysis": "perTest",
+  "inPlace": false,
+  "vitest": {
+    "configFile": "vitest.stryker.config.ts"
+  },
+  "tempDirName": ".stryker-tmp"
+}

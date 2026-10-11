@@ -1,0 +1,110 @@
+---
+import type { RankedResult } from "../domain/types/ranking.ts";
+import SignalBreakdown from "./SignalBreakdown.astro";
+
+interface Props {
+  results: readonly RankedResult[];
+  now: Date;
+  /** Label for the score column, for example "BM25" or "RRF". */
+  scoreLabel?: string;
+  /** Open the signal breakdown of the first result by default. */
+  openFirst?: boolean;
+  /** Compact rows for side-by-side comparison. */
+  compact?: boolean;
+}
+
+const { results, now, scoreLabel = "Score", openFirst = true, compact = false } = Astro.props;
+const dayMs = 24 * 60 * 60 * 1000;
+
+function ageLabel(postedAt: string): string {
+  const posted = Date.parse(postedAt);
+  if (Number.isNaN(posted)) {
+    return "unknown age";
+  }
+  const days = Math.floor((now.getTime() - posted) / dayMs);
+  if (days <= 0) {
+    return "today";
+  }
+  if (days === 1) {
+    return "1 day ago";
+  }
+  return `${days} days ago`;
+}
+
+function priceLabel(priceCents: number): string {
+  return `EUR ${(priceCents / 100).toFixed(2)}`;
+}
+
+function scoreLabelFor(score: number): string {
+  return Math.abs(score) < 0.1 ? score.toFixed(4) : score.toFixed(2);
+}
+
+const maxBySignal = new Map<string, number>();
+for (const result of results) {
+  for (const signal of result.signals) {
+    const current = maxBySignal.get(signal.name) ?? 0;
+    maxBySignal.set(signal.name, Math.max(current, Math.abs(signal.value)));
+  }
+}
+---
+
+<ol class="m-0 list-none p-0">
+  {
+    results.map((result, index) => (
+      <li class="border-t border-rule-soft first:border-t-0">
+        <details
+          class="group"
+          open={openFirst && index === 0 ? true : undefined}
+        >
+          <summary
+            class:list={[
+              "grid cursor-pointer list-none grid-cols-[36px_1fr_auto] items-start gap-3.5 hover:bg-[#fcf9f2] [&::-webkit-details-marker]:hidden",
+              compact ? "px-3.5 py-2.5" : "px-4 py-3.5",
+            ]}
+          >
+            <span class="pt-0.5 font-mono text-[13px] text-ink-4">{result.position}</span>
+            <span class="min-w-0">
+              <span
+                class:list={[
+                  "block font-serif font-medium leading-[1.25] text-ink",
+                  compact ? "text-[17px]" : "text-[19px]",
+                ]}
+              >
+                {result.item.title}
+              </span>
+              {
+                result.item.description !== "" ? (
+                  <span class="mt-0.5 block truncate text-[13px] leading-snug text-ink-2">
+                    {result.item.description}
+                  </span>
+                ) : null
+              }
+              <span class="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[12.5px] text-ink-3">
+                <span>{result.item.categoryId}</span>
+                <span class="text-rule-2">·</span>
+                <span class="font-mono">{priceLabel(result.item.priceCents)}</span>
+                {
+                  result.item.location !== "" ? (
+                    <>
+                      <span class="text-rule-2">·</span>
+                      <span>{result.item.location}</span>
+                    </>
+                  ) : null
+                }
+                <span class="text-rule-2">·</span>
+                <span>{ageLabel(result.item.postedAt)}</span>
+              </span>
+            </span>
+            <span class="text-right">
+              <span class="block text-[10.5px] uppercase tracking-[0.05em] text-ink-4">{scoreLabel}</span>
+              <span class="block font-mono text-[15px] text-ink">{scoreLabelFor(result.score)}</span>
+            </span>
+          </summary>
+          <div class:list={["pb-3.5", compact ? "pl-[50px] pr-3.5" : "pl-[66px] pr-4"]}>
+            <SignalBreakdown signals={result.signals} maxBySignal={maxBySignal} />
+          </div>
+        </details>
+      </li>
+    ))
+  }
+</ol>

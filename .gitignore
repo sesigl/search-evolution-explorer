@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+__pycache__/
+
+# Local embedding model cache (downloaded once, never committed)
+.cache/
+
+# Raw public datasets (downloaded once, never committed)
+data/wands/
+data/esci/
+
+# Build output
+dist/
+.astro/
+
+# Test and quality reports
+coverage/
+reports/
+.stryker-tmp/
+reports/mutation/
+stryker-setup-*.js
+
+# Logs and secrets
+*.log
+.env
+.env.*
+
+# OS and editor noise
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/
+.vscode/
+
+data/embeddings.bin
+# Vercel CLI: project link, pulled env files and build output
+.vercel/

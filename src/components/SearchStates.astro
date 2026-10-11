@@ -1,0 +1,65 @@
+---
+interface Props {
+  kind: "empty" | "zero" | "over-length" | "unavailable";
+  message: string;
+  /** Optional shell command the learner can run to fix an unavailable level. */
+  command?: string | null;
+}
+
+const { kind, message, command = null } = Astro.props;
+
+const titles: Record<Props["kind"], string> = {
+  empty: "Enter a query to begin",
+  zero: "No listings matched at this level",
+  "over-length": "Query too long",
+  unavailable: "This level is not available right now",
+};
+---
+
+<div
+  role="status"
+  data-state={kind}
+  class:list={[
+    "card flex items-start gap-3.5 px-5 py-4",
+    kind === "unavailable" ? "border-dashed" : "",
+  ]}
+>
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    class="mt-0.5 shrink-0 text-ink-3"
+    aria-hidden="true"
+  >
+    {
+      kind === "empty" ? (
+        <>
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </>
+      ) : (
+        <>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8v4" />
+          <path d="M12 16h.01" />
+        </>
+      )
+    }
+  </svg>
+  <div class="flex flex-col gap-1">
+    <span class="font-serif text-[17px] font-semibold">{titles[kind]}</span>
+    <p class="m-0 text-[13.5px] text-ink-2">{message}</p>
+    {
+      command !== null ? (
+        <code class="mt-1 self-start rounded-md bg-paper px-2.5 py-1.5 font-mono text-xs text-ink">
+          {command}
+        </code>
+      ) : null
+    }
+  </div>
+</div>

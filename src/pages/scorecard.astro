@@ -1,0 +1,116 @@
+---
+import { handleGetLevels } from "../actions/get-levels.ts";
+import { handleGetScorecard } from "../actions/get-scorecard.ts";
+import ScorecardView from "../components/Scorecard.astro";
+import SearchStates from "../components/SearchStates.astro";
+import Terms from "../components/Terms.astro";
+import { UseCaseError } from "../domain/search/errors.ts";
+import type { Scorecard } from "../domain/types/evaluation.ts";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const { levels } = await handleGetLevels();
+const labels = new Map(
+  levels.map((level) => [level.id, { ordinal: level.ordinal, label: level.label }] as const),
+);
+
+let scorecard: Scorecard | null = null;
+let errorMessage: string | null = null;
+try {
+  scorecard = await handleGetScorecard(undefined);
+} catch (error) {
+  if (error instanceof UseCaseError) {
+    errorMessage = error.message;
+  } else {
+    throw error;
+  }
+}
+const judgedQueries = scorecard?.runs[0]?.perQuery.length ?? 0;
+const testOnly = Astro.url.searchParams.get("split") === "test";
+const displayedScorecard = testOnly ? scorecard?.heldOut ?? null : scorecard;
+const displayedQueries = displayedScorecard?.runs[0]?.perQuery.length ?? 0;
+---
+
+<BaseLayout title="Scorecard — Search Evolution Explorer" trail="/scorecard">
+  <div class="grid items-start gap-6 px-7 pb-8 pt-7 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div class="flex min-w-0 flex-col gap-[18px]">
+      <div class="flex flex-wrap items-end justify-between gap-5">
+        <div>
+          <h1 class="m-0 font-serif text-[32px] font-medium tracking-[-0.015em]">Evaluation scorecard</h1>
+          <p class="m-0 mt-1.5 max-w-[60ch] font-serif text-base text-ink-2">
+            <Terms
+              text={testOnly ? `${displayedQueries} judged queries in Chapter 11's fixed test split. Their normalized texts are excluded from tower training and validation. Each chapter is evaluated on the same subset. Chapter 8 was trained earlier on the full simulated log; this is a holdout for the new towers, not for every upstream model.` : `Every chapter that runs, graded against the same answer key of ${judgedQueries} judged queries. This overall view includes Chapter 11 training and validation queries. Use the held-out view to assess its new towers.`}
+            />
+          </p>
+          <a class="mt-2 inline-block text-[13px] font-semibold" href="/search?level=level-0-evaluation">
+            Grade one query row by row →
+          </a>
+          <nav class="mt-3 flex flex-wrap gap-4 text-[13px]" aria-label="Evaluation query split">
+            <a href="/scorecard?level=level-6-two-tower" aria-current={!testOnly ? "page" : undefined}>All judged queries</a>
+            <a href="/scorecard?split=test&level=level-6-two-tower" aria-current={testOnly ? "page" : undefined}>Chapter 11 held-out queries</a>
+          </nav>
+        </div>
+        <span class="tag tag-ok">deterministic</span>
+      </div>
+      {errorMessage !== null ? <SearchStates kind="unavailable" message={errorMessage} /> : null}
+      {
+        displayedScorecard !== null ? (
+          <ScorecardView scorecard={displayedScorecard} labels={labels} highlightLevelId={Astro.url.searchParams.get("level")} />
+        ) : null
+      }
+      {testOnly && displayedScorecard === null ? <SearchStates kind="unavailable" message="The held-out split requires current Chapter 11 artifacts. Run npm run data:two-tower and restart the app." /> : null}
+    </div>
+
+    <div class="flex flex-col gap-4">
+      <section class="card flex flex-col gap-2.5 px-[18px] py-4">
+        <h2 class="h2">Read the numbers</h2>
+        <div class="flex flex-col gap-2 font-serif text-[15px] leading-[1.55]">
+          <span>
+            <strong>NDCG@10</strong> rewards putting the most relevant listings at the top of the first
+            page. It is the headline metric because position matters to a searcher.
+          </span>
+          <span><strong>MRR</strong> asks how far down the first relevant listing sits.</span>
+          <span>
+            <strong>Recall@50</strong> measures the share of known relevant listings in the first 50.
+            It can change through retrieval or through ordering when more than 50 candidates exist.
+          </span>
+        </div>
+      </section>
+      <section class="card flex flex-col gap-2 px-[18px] py-4">
+        <h2 class="h2">When a higher level scores lower</h2>
+        <p class="m-0 font-serif text-[15px] leading-[1.55]">
+          <Terms text="It happens, and the table shows it instead of hiding it. A chapter adds one rule. Hand-tuned boosts win on 'marble' and lose on queries where recency or price pushes the right listing down. That is the reason chapter 8 learns the weights from data, and the reason the introduction starts with an answer key: one convincing example is not proof. The average over all judged queries is." />
+        </p>
+      </section>
+      {
+        scorecard !== null ? (
+          <section class="card-warm flex flex-col gap-2 px-[18px] py-4">
+            <h2 class="h2">Ground-truth disclosure</h2>
+            <p class="m-0 font-serif text-[15px] leading-normal">{scorecard.runs[0]?.groundTruthDisclosure}</p>
+            <a href="/bias" class="text-[13px] font-semibold">Inspect the click log and the position decay →</a>
+          </section>
+        ) : null
+      }
+      <section class="card flex flex-col gap-2 px-[18px] py-4">
+        <h2 class="h2">Chapter 11 evidence</h2>
+        <p class="m-0 font-serif text-[15px] leading-normal">The towers use training-query WANDS relevance grades. Separate validation queries select the epoch, candidate budget and score weight. Test query texts are excluded from those steps, but related paraphrases can cross the split. The labels are human; the clicks are simulated. Wider-hybrid and untrained title-vector controls are measured on validation queries in the model manifest.</p>
+        <a href="/search?level=level-6-two-tower#two-tower-lab">Explore the evaluation stage in Chapter 11 →</a>
+      </section>
+      <section class="card flex flex-col gap-2 px-[18px] py-4">
+        <h2 class="h2">Provenance of chapter 8</h2>
+        <dl class="m-0 grid grid-cols-[110px_1fr] gap-x-2.5 gap-y-1.5 text-[13px]">
+          <dt class="text-ink-4">Training data</dt>
+          <dd class="m-0">simulated click sessions from the bundled log</dd>
+          <dt class="text-ink-4">Clicks</dt>
+          <dd class="m-0">simulated, not observed</dd>
+          <dt class="text-ink-4">Position bias</dt>
+          <dd class="m-0 flex flex-wrap items-center gap-1.5">
+            <span class="tag tag-ok">corrected</span>
+            <span class="text-xs text-ink-3"><Terms text="with inverse propensity scoring (IPS)" /></span>
+          </dd>
+          <dt class="text-ink-4">Rebuild</dt>
+          <dd class="m-0 font-mono text-xs">npm run data:train</dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+</BaseLayout>

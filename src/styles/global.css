@@ -1,0 +1,257 @@
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/*
+ * Lab-notebook palette. Two accents carry one meaning everywhere:
+ * blue  = matching (which listings are candidates)
+ * amber = scoring  (the order of the candidates)
+ */
+@theme {
+  --font-serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-sans: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
+
+  --color-paper: #f6f1e8;
+  --color-paper-2: #efe8db;
+  --color-paper-3: #e9e1d2;
+  --color-surface: #fffdf8;
+  --color-surface-warm: #fdf8ef;
+  --color-rule: #e3dbcd;
+  --color-rule-2: #cfc5b4;
+  --color-rule-soft: #ede6d9;
+  --color-ink: #26211b;
+  --color-ink-2: #5c5347;
+  --color-ink-3: #6e655a;
+  --color-ink-4: #746a5d;
+  --color-ink-5: #b9ae9c;
+
+  --color-amber: #b3641e;
+  --color-amber-deep: #8a4a12;
+  --color-amber-soft: #f3e3cf;
+  --color-amber-tint: #fbeed6;
+  --color-amber-border: #d9c9ad;
+
+  --color-blue: #0e7c9c;
+  --color-blue-deep: #0e6a86;
+  --color-blue-soft: #dcedf2;
+
+  --color-green: #2f6f3a;
+  --color-green-soft: #dcebd9;
+  --color-green-tint: #eef5ec;
+  --color-red: #93382c;
+  --color-red-soft: #f2d9d4;
+  --color-red-tint: #f9ecea;
+  --color-gold: #7a5a10;
+  --color-gold-soft: #f2e6c9;
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  a {
+    color: var(--color-amber-deep);
+  }
+  a:hover {
+    color: var(--color-amber-deep);
+  }
+  ::selection {
+    background: var(--color-amber-soft);
+  }
+}
+
+/* Honour the user's motion preference: the row FLIP, bar fills and code flash are all motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-[10px] border border-rule bg-surface;
+  }
+  .card-warm {
+    @apply rounded-[10px] border border-amber-border bg-surface-warm;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-4;
+  }
+  .h2 {
+    @apply m-0 font-serif text-[17px] font-semibold tracking-[-0.005em];
+  }
+  .tag {
+    @apply inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.04em] whitespace-nowrap;
+  }
+  .tag-match {
+    @apply bg-blue-soft text-blue-deep;
+  }
+  .tag-score {
+    @apply bg-amber-soft text-amber-deep;
+  }
+  .tag-preview {
+    @apply bg-paper-2 text-ink-3;
+  }
+  .tag-ok {
+    @apply bg-green-soft text-green;
+  }
+  .tag-down {
+    @apply bg-red-soft text-red;
+  }
+  .tag-warn {
+    @apply bg-gold-soft text-gold;
+  }
+  .btn {
+    @apply inline-flex h-11 cursor-pointer items-center gap-2 rounded-lg border-0 bg-ink px-4 text-[14px] font-semibold text-surface no-underline hover:bg-[#3a3128] hover:text-surface;
+  }
+  .btn-ghost {
+    @apply inline-flex h-[34px] cursor-pointer items-center gap-2 rounded-lg border border-rule-2 bg-transparent px-3.5 text-[13px] font-semibold text-ink no-underline hover:bg-paper-2 hover:text-ink;
+  }
+  .input {
+    @apply h-11 w-full rounded-lg border border-rule-2 bg-surface font-sans text-base font-medium text-ink outline-none focus:border-amber focus:ring-2 focus:ring-amber;
+  }
+  .select {
+    @apply h-11 w-full appearance-none rounded-lg border border-rule-2 bg-surface pl-3 pr-9 font-sans text-[14px] font-medium text-ink outline-none focus:border-amber focus:ring-2 focus:ring-amber;
+  }
+  .chip {
+    @apply rounded-[5px] bg-paper-2 px-[7px] py-[3px] font-mono text-xs text-ink;
+  }
+  .chip-new {
+    @apply bg-blue-soft text-blue-deep;
+  }
+  .note {
+    @apply rounded-lg bg-paper px-3 py-2.5 text-[12.5px] text-ink-2;
+  }
+  .kv-key {
+    @apply pt-[3px] text-[11px] font-semibold uppercase tracking-[0.05em] text-ink-4;
+  }
+  .kv-val {
+    @apply font-serif text-[15px] leading-normal text-ink;
+  }
+
+  /* Glossary term: dotted underline, definition on hover or keyboard focus. */
+  .term {
+    @apply relative inline;
+  }
+  .term > .term-word {
+    @apply cursor-help underline decoration-amber decoration-dotted decoration-[1.5px] underline-offset-[3px];
+  }
+  .term > .term-word:hover,
+  .term > .term-word:focus-visible {
+    @apply bg-amber-tint outline-none;
+  }
+  .term > [role="tooltip"] {
+    @apply pointer-events-none absolute left-0 top-full z-30 mt-1.5 hidden w-[min(300px,80vw)] rounded-lg bg-ink px-3 py-2.5 font-sans text-[12.5px] font-normal normal-case leading-snug tracking-normal text-surface shadow-lg;
+  }
+  .term:hover > [role="tooltip"],
+  .term:focus-within > [role="tooltip"] {
+    @apply block;
+  }
+  /* On a phone the popover would hang off the edge, so pin it to the bottom of the screen. */
+  @media (max-width: 640px) {
+    .term > [role="tooltip"] {
+      position: fixed;
+      inset: auto 0.75rem 0.75rem 0.75rem;
+      width: auto;
+    }
+  }
+  /* The chart SVG shrinks on a phone; grow the axis text in user units so it stays readable. */
+  @media (max-width: 640px) {
+    .chart text {
+      font-size: 20px;
+    }
+  }
+  /* Code explorer: openable symbols, numbered callouts, breadcrumb trail, return flash. */
+  .code-link {
+    @apply cursor-pointer rounded-[3px] border-0 bg-transparent p-0 font-mono text-[inherit] text-blue-deep underline decoration-blue decoration-dotted decoration-[1.5px] underline-offset-[3px];
+  }
+  .code-link:hover,
+  .code-link:focus-visible {
+    @apply bg-blue-soft outline-none;
+  }
+  .code-link-local {
+    @apply text-ink-2 decoration-ink-4;
+  }
+  .code-link-local:hover,
+  .code-link-local:focus-visible {
+    @apply bg-paper-2;
+  }
+  .note-badge {
+    @apply inline-flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-full bg-amber font-sans text-[10.5px] font-semibold leading-none text-surface;
+  }
+  .crumb {
+    @apply inline-flex max-w-[360px] cursor-pointer items-center truncate rounded-md border-0 bg-transparent px-2 py-1 font-mono text-[12px] text-amber-deep hover:bg-paper-2;
+  }
+  .crumb-current {
+    @apply max-w-none cursor-default font-semibold text-ink hover:bg-transparent;
+  }
+  .code-flash {
+    animation: code-flash 1.6s ease-out;
+  }
+  @keyframes code-flash {
+    0% {
+      background-color: var(--color-amber-soft);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+  /* Guided tour: a moving cut-out over the live page, and one card beside it. */
+  .tour-overlay {
+    @apply pointer-events-none fixed inset-0 z-40;
+  }
+  .tour-veil {
+    @apply absolute inset-0 bg-ink/50;
+  }
+  .tour-spot {
+    @apply absolute rounded-[10px] shadow-[0_0_0_9999px_rgba(38,33,27,0.5),0_0_0_2px_var(--color-amber)];
+    transition:
+      top 260ms ease,
+      left 260ms ease,
+      width 260ms ease,
+      height 260ms ease;
+  }
+  .tour-card {
+    @apply fixed z-50 flex w-[360px] max-w-[calc(100vw-24px)] flex-col rounded-[12px] border border-amber-border bg-surface px-5 py-4 shadow-[0_18px_48px_rgba(38,33,27,0.28)] outline-none;
+    transition:
+      top 260ms ease,
+      left 260ms ease;
+  }
+  .tour-card-docked {
+    @apply w-[calc(100vw-24px)];
+  }
+  .tour-skip {
+    @apply inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 font-sans text-xs text-ink-3 hover:text-ink;
+  }
+  .tour-skip kbd {
+    @apply rounded border border-rule-2 bg-paper px-1 font-mono text-[10px];
+  }
+  .tour-dot {
+    @apply inline-block h-1.5 w-1.5 rounded-full bg-rule-2;
+  }
+  .tour-dot-on {
+    @apply bg-amber;
+  }
+  .grade-3 {
+    @apply bg-green-soft text-green;
+  }
+  .grade-2 {
+    @apply bg-blue-soft text-blue-deep;
+  }
+  .grade-1 {
+    @apply bg-gold-soft text-gold;
+  }
+  .grade-0 {
+    @apply bg-paper-2 text-ink-4;
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/coverage",
+      "!**/reports",
+      "!**/.cache",
+      "!**/.astro",
+      "!**/.stryker-tmp",
+      "!**/stryker-setup-*.js",
+      "!**/package-lock.json",
+      "!**/data/**/*.ndjson",
+      "!**/data/**/*.bin",
+      "!**/data/models",
+      "!**/data/precomputed",
+      "!**/data/*.manifest.json",
+      "!**/data/judgments.manifest.json",
+      "!**/data/clicks.manifest.json",
+      "!**/*.astro"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "linter": {
+    "enabled": true,
+    "domains": {
+      "types": "all",
+      "test": "all"
+    },
+    "rules": {
+      "preset": "all",
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 15
+          }
+        },
+        "useLiteralKeys": "off",
+        "noExcessiveLinesPerFunction": "off",
+        "useMaxParams": "off"
+      },
+      "correctness": {
+        "noNodejsModules": "off",
+        "noUnresolvedImports": "off",
+        "useQwikValidLexicalScope": "off"
+      },
+      "security": {
+        "noSecrets": "off"
+      },
+      "style": {
+        "noDefaultExport": "off",
+        "noTernary": "off",
+        "noMagicNumbers": "off",
+        "useExportsLast": "off",
+        "useDestructuring": "off",
+        "useConsistentMethodSignatures": "off",
+        "useErrorCause": "off",
+        "useFilenamingConvention": "off"
+      },
+      "suspicious": {
+        "noEmptySource": "off"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["**/*.css"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noHexColors": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/islands/**/*.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUnknownAttribute": "off"
+          },
+          "style": {
+            "noJsxLiterals": "off"
+          },
+          "complexity": {
+            "noVoid": "off"
+          }
+        }
+      }
+    }
+  ]
+}

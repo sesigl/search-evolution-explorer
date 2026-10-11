@@ -1,0 +1,11 @@
+{
+  "seed": 42,
+  "sessionCount": 50000,
+  "queryCount": 246,
+  "positionDecayDescription": "Examination probability is 1/rank for 1-based rank. A listing at position 1 is examined with probability 1, at position 2 with probability 0.5, and so on.",
+  "clickModel": "relevance x position decay; relevance = 0.03 + (1 - 0.03) x grade / 3",
+  "relevanceSource": "WANDS human labels (Exact=3, Partial=1, Irrelevant=0)",
+  "loggingPolicy": "Chapter 2 (lexical + normalization) ranks every matching listing. Sessions examine the full list with 1/rank decay.",
+  "corpusHash": "0f33b4e040fe9a607846ac0e227326fe7d814b223705c4001b3875128788f873",
+  "judgmentsHash": "b2c17916c3ca4abf295a648bd6f80f5c8d6a9cd738451968d5f39d2851aa3805"
+}

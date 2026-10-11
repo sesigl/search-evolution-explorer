@@ -1,0 +1,96 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Terms from "../components/Terms.astro";
+import BeyondLab from "../islands/beyond/BeyondLab.tsx";
+
+const map = [
+  {
+    book: "Book chapter 5 · knowledge graphs",
+    title: "Knowledge graphs",
+    here: "A flat, hand-written table of brands, models and product types. There is no graph, no extraction and no traversal.",
+    link: { href: "/level/level-1-entities?file=src/domain/query-understanding/entities.ts", label: "Open the entity table →" },
+  },
+  {
+    book: "Book chapter 9 · personalised search",
+    title: "Personalisation",
+    here: "A transparent category-and-city boost, shown above. There is no learned user embedding and no collaborative filtering.",
+    link: { href: "#demos-heading", label: "Try the boost demo ↑" },
+  },
+  {
+    book: "Book chapter 11 · click models",
+    title: "Click models",
+    here: "Position bias and inverse propensity weighting, worked through on one page. There is no dynamic Bayesian network and no confidence prior.",
+    link: { href: "/bias", label: "Open position bias →" },
+  },
+  {
+    book: "Book chapter 12 · active learning",
+    title: "Active learning and A/B tests",
+    here: "Offline metrics only. There is no online experiment, no exploration policy and no statistical test.",
+    link: { href: "/scorecard", label: "Open the scorecard →" },
+  },
+  {
+    book: "Book chapter 13 · dense vectors at scale",
+    title: "Approximate nearest neighbours",
+    here: "Exact search over the full WANDS catalog (about 43,000 products). HNSW, quantization and recall-versus-latency are named but not built.",
+    link: { href: "/level/level-4-hybrid", label: "Open hybrid search →" },
+  },
+  {
+    book: "Book chapters 14-15 · LLMs and foundation models",
+    title: "Answering, grounding and multimodal search",
+    here: "The grounded-answer demo above, with a template writer instead of a language model. No fine-tuning, no generative or multimodal search.",
+    link: { href: "#demos-heading", label: "Try the answer demo ↑" },
+  },
+];
+---
+
+<BaseLayout title="Beyond this book — Search Evolution Explorer" trail="/beyond">
+  <div class="mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-12 pt-8 sm:px-7">
+    <header class="flex flex-col gap-3">
+      <span class="eyebrow tracking-[0.08em]">Part four · the search frontier</span>
+      <h1 class="m-0 max-w-[22ch] font-serif text-[36px] font-medium leading-[1.08] tracking-[-0.02em]">
+        Where this book stops, and what is beyond it
+      </h1>
+      <p class="m-0 max-w-[68ch] font-serif text-[17px] leading-normal text-ink-2">
+        The eleven chapters build one search engine, from exact word matching to a trained
+        two-tower retriever. <em>AI-Powered Search</em> goes further, into knowledge graphs,
+        personalisation, click models, active learning, LLMs and multimodal search. Two of those
+        ideas are demonstrated below; the rest are named honestly, with a link to the closest
+        thing this app does have. Nothing here is claimed to be production search.
+      </p>
+    </header>
+
+    <section class="flex flex-col gap-4" aria-labelledby="demos-heading">
+      <h2 id="demos-heading" class="h2">Two frontier ideas you can run</h2>
+      <BeyondLab client:load />
+    </section>
+
+    <section class="flex flex-col gap-4" aria-labelledby="map-heading">
+      <h2 id="map-heading" class="h2">What is not built here</h2>
+      <p class="m-0 max-w-[72ch] font-serif text-[15.5px] leading-normal text-ink-2">
+        A reviewer should be able to see the boundary at a glance. Each row names a book chapter,
+        what the app actually does, and where to look.
+      </p>
+      <ul class="m-0 grid list-none gap-3 p-0 md:grid-cols-2 xl:grid-cols-3">
+        {
+          map.map((entry) => (
+            <li class="card flex flex-col gap-2 px-[18px] py-4">
+              <span class="eyebrow">{entry.book}</span>
+              <span class="font-serif text-[17px] font-semibold">{entry.title}</span>
+              <span class="grow text-[13.5px] leading-snug text-ink-2">{entry.here}</span>
+              <a class="text-[13px] font-semibold" href={entry.link.href}>{entry.link.label}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="card-warm flex flex-col gap-2 px-[18px] py-4">
+      <h2 class="h2">What this app does not claim</h2>
+      <p class="m-0 font-serif text-[15px] leading-normal text-ink-2">
+        <Terms
+          text="The catalog is the WANDS dataset (Wayfair ANnotation Dataset, MIT licence, github.com/wayfair/WANDS): 42,994 products and human grades (Exact, Partial, Irrelevant). Price and date are deterministic synthetic overlay columns because WANDS has neither. The numbers reproduce on this machine and are not a production experiment. The app teaches the mechanisms; the book teaches the mechanisms and the scale. Use the app to see how a ranking is built and measured, then read the book for the systems that serve real traffic."
+        />
+      </p>
+    </section>
+  </div>
+</BaseLayout>
