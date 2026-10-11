@@ -44,7 +44,7 @@ The same search page contains five learning stages: run before/after searches, e
 loss, inspect actual result signals, compare measured scorecards, and answer operational questions.
 The training source and references expand in place.
 
-Vitest is pinned to `4.1.10`. Vitest `5.0.0` was specified in the plan, but Stryker 10 does not activate mutants under Vitest 5 (every mutant survived while the same change failed under Vitest 4). Mutation testing is a constitution gate, so the working pair is used.
+Vitest is pinned to `4.1.10`. Stryker 10 does not activate mutants under Vitest 5 (every mutant survived while the same change failed under Vitest 4). Mutation testing is a required check, so the working pair is used.
 
 ## Verify
 
@@ -158,8 +158,14 @@ Level ids keep their historical `level-N` prefix; the ordinal decides the chapte
 
 `/beyond` states the boundary of this book. It runs two frontier ideas on the same results: a grounded answer with a source checker (the retrieve–cite–verify loop of RAG, with a template writer instead of a language model) and a transparent personalisation boost. It also names, one by one, what is deliberately not built: knowledge graphs, learned user models, click-model families, active learning and A/B tests, approximate nearest neighbours, LLM fine-tuning and multimodal search.
 
-## Performance budget (SC-006)
+## Performance budget
 
 Chapters 1-9 are specified to return within 2 seconds on a developer laptop. The current catalog has 42,994 products. Recency and lexical search return in well under 100 ms once the inverted index is in memory. Chapters 4 and 5 add a vocabulary lookup and concept checks per candidate; chapter 5 scans the whole catalog when the query names an attribute, so it is the slowest lexical chapter. Chapter 8 adds a linear score per candidate. Chapter 9 encodes one query vector; document vectors are precomputed.
 
 Chapter 10 scores at most 50 query-listing pairs in batches of 8, with at most 256 model tokens per pair. Its raw joint score determines the order. The previous rank and retrieval signals are shown as context. Inference is serialized and the last 64 exact requests are cached, so paging reuses scores. The first full scorecard takes several minutes on the full WANDS catalog because it evaluates every judged query and reranks 50 pairs per query.
+
+## License
+
+The code and the text of this project are released under the [MIT License](LICENSE). You may use, copy, change and share them, also in courses and in your own projects. Keep the copyright notice.
+
+The catalog, the queries and the relevance labels in `data/` are derived from [WANDS](https://github.com/wayfair/WANDS) (Wayfair ANnotation Dataset), which is also MIT-licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

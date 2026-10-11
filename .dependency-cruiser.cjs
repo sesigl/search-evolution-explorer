@@ -37,8 +37,7 @@ module.exports = {
     },
     {
       name: "level-0-imports-no-level",
-      comment:
-        "Level 0 is the baseline. It must not import any other level module (FR-003, FR-014).",
+      comment: "Level 0 is the baseline. It must not import any other level module.",
       severity: "error",
       from: { path: "^src/domain/levels/level-0-" },
       to: { path: "^src/domain/levels/level-[1-9]" },
