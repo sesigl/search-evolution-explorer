@@ -1,0 +1,7 @@
+# Every search, comparison and API URL runs the search engine on the server.
+# Crawlers following the many query links would spend compute on pages nobody reads.
+User-agent: *
+Disallow: /api/
+Disallow: /search?
+Disallow: /compare?
+Disallow: /level/*?

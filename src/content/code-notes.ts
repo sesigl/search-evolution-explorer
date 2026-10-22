@@ -539,9 +539,9 @@ const CODE_NOTES: Readonly<Record<string, CodeNotes>> = {
         text: "Title and description are split into terms by the same analyzer that BM25 uses later. Each listing is analyzed once, here.",
       },
       {
-        at: "documentFrequency.set(token, (documentFrequency.get(token) ?? 0) + 1);",
+        at: "documentFrequency.set(token, posting.size);",
         title: "Document frequency",
-        text: "How many listings contain this token. BM25 reads it: a word found in few listings is worth more than a word found in most.",
+        text: "How many listings contain this token: the size of its posting. BM25 reads it: a word found in few listings is worth more than a word found in most.",
       },
       {
         at: "ids = ids === undefined ? new Set(posting) : intersect(ids, posting);",
@@ -784,9 +784,14 @@ const CODE_NOTES: Readonly<Record<string, CodeNotes>> = {
     summary: "Porter stemming through the stemmer package: rugs to rug, running to run.",
     notes: [
       {
-        at: "return stemmer(token);",
+        at: "const stemmed = stemmer(token);",
         title: "Rule-based, not a dictionary",
         text: "The Porter algorithm strips suffixes by rules. The result is not always a word (pony becomes poni), but the same input always gives the same output on both sides.",
+      },
+      {
+        at: "const known = stems.get(token);",
+        title: "Remember each answer",
+        text: "Because the output depends only on the input, a word is stemmed once and looked up after that. Building the index stems millions of words but only tens of thousands of distinct ones.",
       },
     ],
   },

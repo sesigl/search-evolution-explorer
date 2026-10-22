@@ -6,6 +6,9 @@ import { lessonFor } from "../content/lessons.ts";
 import FirstExperiment from "../islands/home/FirstExperiment.tsx";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
+// No request input: built once at deploy time, served as a static file.
+export const prerender = true;
+
 const [{ levels }, experiment] = await Promise.all([handleGetLevels(), handleGetFirstExperiment()]);
 const intro = levels.find((level) => level.ordinal === 0);
 const chapters = levels.filter((level) => level.ordinal > 0);
