@@ -17,12 +17,17 @@ export function buildInvertedIndex(items: readonly CorpusItem[], analyze: Analyz
       totalLength += tokens.length;
       const unique = new Set(tokens);
       for (const token of unique) {
-        const posting = postings.get(token) ?? new Set<string>();
+        let posting = postings.get(token);
+        if (posting === undefined) {
+          posting = new Set<string>();
+          postings.set(token, posting);
+        }
         posting.add(item.id);
-        postings.set(token, posting);
-        documentFrequency.set(token, (documentFrequency.get(token) ?? 0) + 1);
       }
     }
+  }
+  for (const [token, posting] of postings) {
+    documentFrequency.set(token, posting.size);
   }
   return {
     documentCount,

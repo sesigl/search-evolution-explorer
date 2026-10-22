@@ -53,7 +53,7 @@ import { type BiasLesson, buildBiasLesson } from "./domain/ranking/bias-lesson.t
 import { createFeatureLookup } from "./domain/ranking/feature-lookup.ts";
 import { estimatePropensity } from "./domain/ranking/propensity.ts";
 import { UseCaseError } from "./domain/search/errors.ts";
-import type { SearchInput, SearchOutput } from "./domain/search/run-search.ts";
+import type { SearchDeps, SearchInput, SearchOutput } from "./domain/search/run-search.ts";
 import { runSearch } from "./domain/search/run-search.ts";
 import { analyzeDocument } from "./domain/text/analyze-document.ts";
 import { TWO_TOWER_PATH } from "./domain/two-tower/model.ts";
@@ -61,6 +61,7 @@ import type { TowerTrainingReport } from "./domain/two-tower/training-report.ts"
 import type { Scorecard } from "./domain/types/evaluation.ts";
 import type {
   AsyncLevelRanker,
+  InvertedIndex,
   LevelDeps,
   LevelRanker,
   PrerequisiteState,
@@ -119,6 +120,13 @@ interface App {
   precomputeResults(): Promise<PrecomputedResults>;
 }
 
+type RankerFactory = (deps: LevelDeps) => LevelRanker | AsyncLevelRanker;
+
+interface SearchEngine {
+  readonly index: InvertedIndex;
+  readonly searchDeps: SearchDeps;
+}
+
 let cached: Promise<App> | undefined;
 
 export function createApp(): Promise<App> {
@@ -132,7 +140,6 @@ async function buildApp(): Promise<App> {
   const categories = await corpus.readCategories();
   const clock = createSystemClock();
   const levers = readLevers();
-  const index = buildInvertedIndex(items, (text) => analyzeDocument(text, levers));
   const correctedModel = readModel("data/models/ranker-corrected.json");
   const biasNaiveModel = readModel("data/models/bias-naive.json");
   const biasCorrectedModel = readModel("data/models/bias-corrected.json");
@@ -150,31 +157,30 @@ async function buildApp(): Promise<App> {
     }
     return stateForPath(path, encoderReady, corpusHash, clicksHash);
   }
-  const deps: LevelDeps =
-    correctedModel === undefined
-      ? { corpus, index, levers, clock }
-      : { corpus, index, levers, clock, model: correctedModel };
-  const rankers = new Map<string, LevelRanker | AsyncLevelRanker>([
-    ["level-1-recency", createLevelRecency(deps)],
-    ["level-1-normalization", createLevelNormalization(deps)],
-    ["level-1-lexical", createLevel1(deps)],
-    ["level-1-spelling", createLevelSpelling(deps)],
-    ["level-1-entities", createLevelEntities(deps)],
-    ["level-1-canonical", createLevelCanonical(deps)],
-    ["level-2-boosting", createLevel2(deps)],
+  // Which levels are ready is known from the artifacts alone. The rankers themselves, and the
+  // inverted index they share, take seconds to build, so they are built on the first search.
+  // Pages that only read precomputed results, the code or the level list never pay for them.
+  const rankerFactories = new Map<string, RankerFactory>([
+    ["level-1-recency", createLevelRecency],
+    ["level-1-normalization", createLevelNormalization],
+    ["level-1-lexical", createLevel1],
+    ["level-1-spelling", createLevelSpelling],
+    ["level-1-entities", createLevelEntities],
+    ["level-1-canonical", createLevelCanonical],
+    ["level-2-boosting", createLevel2],
   ]);
   if (
     correctedModel !== undefined &&
     artifactState("data/models/ranker-corrected.json") === "ready"
   ) {
-    rankers.set("level-3-learned", createLevel3(deps));
+    rankerFactories.set("level-3-learned", createLevel3);
   }
   if (
     vectorStore !== undefined &&
     encoder !== undefined &&
     artifactState("data/embeddings.bin") === "ready"
   ) {
-    rankers.set("level-4-hybrid", createLevel4({ ...deps, vectorStore }));
+    rankerFactories.set("level-4-hybrid", (deps) => createLevel4({ ...deps, vectorStore }));
   }
   if (
     crossEncoder !== undefined &&
@@ -184,19 +190,35 @@ async function buildApp(): Promise<App> {
       (prerequisite) => artifactState(prerequisite.artifactPath) === "ready",
     )
   ) {
-    rankers.set("level-5-cross-encoder", createLevel5({ ...deps, vectorStore, crossEncoder }));
-    if (towerArtifact.retrieval !== null) {
-      rankers.set(
-        level6.id,
-        createLevel6({ ...deps, vectorStore, crossEncoder, twoTower: towerArtifact.retrieval }),
+    rankerFactories.set("level-5-cross-encoder", (deps) =>
+      createLevel5({ ...deps, vectorStore, crossEncoder }),
+    );
+    const twoTower = towerArtifact.retrieval;
+    if (twoTower !== null) {
+      rankerFactories.set(level6.id, (deps) =>
+        createLevel6({ ...deps, vectorStore, crossEncoder, twoTower }),
       );
     }
   }
-  const searchDeps = { levels, rankers, levers, clock, categories };
+  let engine: SearchEngine | undefined;
+  function searchEngine(): SearchEngine {
+    if (engine === undefined) {
+      const index = buildInvertedIndex(items, (text) => analyzeDocument(text, levers));
+      const deps: LevelDeps =
+        correctedModel === undefined
+          ? { corpus, index, levers, clock }
+          : { corpus, index, levers, clock, model: correctedModel };
+      const rankers = new Map(
+        [...rankerFactories].map(([id, create]) => [id, create(deps)] as const),
+      );
+      engine = { index, searchDeps: { levels, rankers, levers, clock, categories } };
+    }
+    return engine;
+  }
   const judgments = readJudgments("data/judgments.ndjson");
   const biasSessions = readSessions("data/clicks.ndjson");
   let scorecardQueryVectors: ReadonlyMap<string, Float32Array> | undefined;
-  const fingerprint = resultsFingerprint(corpusHash, clicksHash, [...rankers.keys()]);
+  const fingerprint = resultsFingerprint(corpusHash, clicksHash, [...rankerFactories.keys()]);
   const precomputed = usablePrecomputedResults(fingerprint);
   // These results are deterministic for one corpus, so they are computed once per process,
   // or read from the precomputed file when it matches the current code and data.
@@ -207,7 +229,7 @@ async function buildApp(): Promise<App> {
   let biasLesson: BiasLesson | undefined = precomputed?.biasLesson;
   function earlyLevelIds(): string[] {
     // Chapters 1-8 do not wait for chapter 9's neural evaluation.
-    return readyLevels(levels, (id) => rankers.has(id))
+    return readyLevels(levels, (id) => rankerFactories.has(id))
       .filter((level) => level.ordinal < level5.ordinal)
       .map((level) => level.id);
   }
@@ -228,19 +250,20 @@ async function buildApp(): Promise<App> {
       judgments,
       sessions: biasSessions,
       propensity: estimatePropensity(biasSessions, 10),
-      featuresFor: createFeatureLookup(items, index, levers, clock),
+      featuresFor: createFeatureLookup(items, searchEngine().index, levers, clock),
       chapters: { learned: level3.ordinal, boosted: level2.ordinal },
       queryScope: new Set(uniqueQueryTexts(judgments)),
     });
   }
   async function scorecardFor(levelIds: readonly string[] | undefined): Promise<Scorecard> {
-    scorecardQueryVectors ??= await encodeJudgmentQueries(encoder, judgments, rankers);
+    const { searchDeps } = searchEngine();
+    scorecardQueryVectors ??= await encodeJudgmentQueries(encoder, judgments, searchDeps.rankers);
     return assembleScorecard(
       levelIds,
       judgments,
       searchDeps,
       scorecardQueryVectors,
-      rankers.has(level6.id) ? new Set(towerArtifact.testQueries) : undefined,
+      rankerFactories.has(level6.id) ? new Set(towerArtifact.testQueries) : undefined,
     );
   }
   return {
@@ -249,13 +272,14 @@ async function buildApp(): Promise<App> {
     },
     async search(input) {
       requireReady(input.levelId);
-      return runSearch(await withQueryVector(input, encoder), searchDeps);
+      return runSearch(await withQueryVector(input, encoder), searchEngine().searchDeps);
     },
     async compare(input) {
       requireReady(input.leftLevelId);
       requireReady(input.rightLevelId);
       const needsVector =
         needsQueryVector(input.leftLevelId) || needsQueryVector(input.rightLevelId);
+      const { searchDeps } = searchEngine();
       if (!needsVector || encoder === undefined) {
         return compareLevels(input, searchDeps);
       }
@@ -312,7 +336,7 @@ async function buildApp(): Promise<App> {
       }
       const output = await runSearch(
         await withQueryVector({ queryText, levelId, limit: 10 }, encoder),
-        searchDeps,
+        searchEngine().searchDeps,
       );
       return gradeRanking(
         queryText,

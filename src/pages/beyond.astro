@@ -3,6 +3,9 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Terms from "../components/Terms.astro";
 import BeyondLab from "../islands/beyond/BeyondLab.tsx";
 
+// No request input: built once at deploy time, served as a static file.
+export const prerender = true;
+
 const map = [
   {
     book: "Book chapter 5 · knowledge graphs",
