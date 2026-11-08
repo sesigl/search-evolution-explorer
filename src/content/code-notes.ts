@@ -172,7 +172,12 @@ const CODE_NOTES: Readonly<Record<string, CodeNotes>> = {
         text: "Chapter 3 passes the chapter 2 match function through. The same listings are candidates; only their order can change. That is why the level is tagged scoring only.",
       },
       {
-        at: "const value = bm25Score(",
+        at: "const snapshot = snapshotInstant(deps.index.availableItems);",
+        title: "Age from the snapshot, not the wall clock",
+        text: "The catalog is a fixed snapshot, so its newest listing counts as posted today. Freshness then means the same on every day you run the evaluation.",
+      },
+      {
+        at: "const raw = bm25Score(",
         title: "Scoring: how well the words fit",
         text: "BM25 gives a listing more points when your words are rare across the corpus and appear in this listing, and fewer points when the listing is very long. Open bm25Score to see the formula line by line.",
       },
@@ -182,14 +187,24 @@ const CODE_NOTES: Readonly<Record<string, CodeNotes>> = {
         text: "The listing text is split into terms exactly as it was when the index was built: same tokenizer, same variants, same stems. If these differed, a word could match at index time and not be counted at scoring time.",
       },
       {
-        at: "score: base.score + value,",
-        title: "Add to the level below",
-        text: "Chapter 2 scores everything by recency. Chapter 3 adds BM25 on top, so text fit decides and recency breaks near-ties. Higher levels add to or replace this sum.",
+        at: "const max = bm25MaxScore(",
+        title: "The best score this query can give",
+        text: "Each word's BM25 part approaches idf × (k1 + 1) as the word repeats. The sum over the query words is an upper limit for any listing.",
+      },
+      {
+        at: "const textFit = max > 0 ? raw / max : 0;",
+        title: "Text fit between 0 and 1",
+        text: "Dividing by the upper limit keeps the BM25 order of this query, but puts every query on the same 0-to-1 scale. Now text fit and freshness can be traded against each other with one weight.",
+      },
+      {
+        at: "score: textFit + FRESHNESS_WEIGHT * freshness,",
+        title: "The trade-off, written down",
+        text: "A listing posted on the snapshot day gains at most 0.1 text fit; a week-old one 0.05. A fresh listing beats an older one only when their text fit is close.",
       },
       {
         at: "signals: buildSignals(understanding, candidate, [",
         title: "The signals you see under each result",
-        text: "Nothing extra is computed for display. The BM25 value and the recency base from chapter 2 are the two values shown, and they sum to the score.",
+        text: "Nothing extra is computed for display. Text fit (weight 1) and freshness (weight 0.1) are the two values shown, and their weighted sum is the score.",
       },
     ],
   },
@@ -277,7 +292,7 @@ const CODE_NOTES: Readonly<Record<string, CodeNotes>> = {
       {
         at: '{ name: "attributeMatch", value: matched.attributeMatch, weight: ATTRIBUTE_BOOST },',
         title: "Details add a second point",
-        text: "Type agreement adds 2, brand, model and compatibility agreement adds 1 more. FILTER and BOOST share these weights; they differ only in removal. Later chapters reuse both signals as LTR features.",
+        text: "Type agreement adds 0.1, brand, model and compatibility agreement adds 0.05 more, on the 0-to-1 text-fit scale from chapter 3. FILTER and BOOST share these weights; they differ only in removal. Later chapters reuse both signals as LTR features.",
       },
     ],
   },
@@ -417,7 +432,7 @@ const CODE_NOTES: Readonly<Record<string, CodeNotes>> = {
       {
         at: "...base.signals.map((signal) => ({",
         title: "Every term of the sum is shown",
-        text: "The result list shows the chapter 6 score split into its parts, each with weight 1, plus every boost with its own weight, so you can see which term moved a listing up and by how much. Recency appears twice on purpose: once as chapter 6's base (weight 1) and once as the static-quality boost (weight 0.2). Open a listing and read 'How this score was built'.",
+        text: "The result list shows the chapter 6 score split into its parts, each with its weight, plus every boost with its own weight, so you can see which term moved a listing up and by how much. Recency appears twice on purpose: once as chapter 3's freshness in the base (weight 0.1) and once as the static-quality boost (weight 0.01). Open a listing and read 'How this score was built'.",
       },
     ],
   },

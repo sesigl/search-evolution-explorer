@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { tokenize } from "../text/tokenize.ts";
 import type { CorpusItem } from "../types/corpus.ts";
-import { bm25Score, documentFrequencyOf } from "./bm25.ts";
+import { bm25MaxScore, bm25Score, documentFrequencyOf } from "./bm25.ts";
 
 function item(id: string, title: string): CorpusItem {
   return {
@@ -179,5 +179,36 @@ describe("BM25 scoring", () => {
     expect(stats.documentCount).toBe(1);
     expect(stats.documentFrequency.get("lamp")).toBe(1);
     expect(stats.averageLength).toBe(2);
+  });
+
+  it("Given a query, When the maximum score is computed, Then it is the sum of idf times k1 plus one", () => {
+    const frequency = new Map([
+      ["sofa", 50],
+      ["blue", 200],
+    ]);
+    const idf = (df: number) => Math.log(1 + (1000 - df + 0.5) / (df + 0.5));
+    expect(bm25MaxScore(["sofa", "blue"], 1000, frequency)).toBeCloseTo(
+      (idf(50) + idf(200)) * 2.2,
+      10,
+    );
+  });
+
+  it("Given a heavily repeated query term, When BM25 is computed, Then it stays below the maximum score", () => {
+    const docs = [
+      item("stuffed", Array.from({ length: 50 }, () => "lamp").join(" ")),
+      item("b", "sofa"),
+    ];
+    const stats = documentFrequencyOf(docs, tokenize);
+    const score = bm25Score(
+      ["lamp"],
+      docs[0] as CorpusItem,
+      stats.documentCount,
+      stats.averageLength,
+      stats.documentFrequency,
+      tokenize,
+    );
+    expect(score).toBeLessThan(
+      bm25MaxScore(["lamp"], stats.documentCount, stats.documentFrequency),
+    );
   });
 });

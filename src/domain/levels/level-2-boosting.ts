@@ -7,10 +7,10 @@ import type { EvolutionLevel, LevelDeps, LevelRanker } from "../types/level.ts";
 import type { QueryUnderstanding } from "../types/query.ts";
 import { createRanker as createPrevious } from "./level-1-canonical.ts";
 
-const CATEGORY_BOOST = 2;
-const PRICE_FIT_BOOST = 1;
+const CATEGORY_BOOST = 0.1;
+const PRICE_FIT_BOOST = 0.05;
 /** Recency and other static quality must not outweigh a real text match. */
-const STATIC_QUALITY_WEIGHT = 0.2;
+const STATIC_QUALITY_WEIGHT = 0.01;
 
 export const meta: EvolutionLevel = {
   id: "level-2-boosting",

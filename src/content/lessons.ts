@@ -232,7 +232,7 @@ const LESSONS: readonly Lesson[] = [
       },
       {
         kind: "name",
-        text: "The ordering formula is BM25. Matching and scoring are now separate: the switches decide which listings match, and BM25 decides their order, with recency breaking near-ties.",
+        text: "The ordering formula is BM25. Matching and scoring are now separate: the switches decide which listings match, and BM25 decides their order. BM25 is divided by the best score the query can give, so text fit lies between 0 and 1, and freshness adds at most 0.1 for a listing posted on the snapshot day, halving every week.",
         links: [
           {
             label: "Read the BM25 formula →",
@@ -242,7 +242,7 @@ const LESSONS: readonly Lesson[] = [
       },
     ],
     codeFocus:
-      "match is passed through unchanged from chapter 2. score adds the BM25 formula on top of the recency base.",
+      "match is passed through unchanged from chapter 2. score replaces the recency base with text fit plus a small, weighted freshness bonus.",
   },
   {
     levelId: "level-1-spelling",

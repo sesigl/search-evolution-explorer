@@ -1,6 +1,7 @@
 import { level1Content } from "../../content/levels/level-1.ts";
-import { bm25Score } from "../index/bm25.ts";
+import { bm25MaxScore, bm25Score } from "../index/bm25.ts";
 import { buildSignals } from "../signals/build-signals.ts";
+import { freshnessScore, snapshotInstant } from "../signals/freshness.ts";
 import { analyzeDocument } from "../text/analyze-document.ts";
 import type { EvolutionLevel, LevelDeps, LevelRanker } from "../types/level.ts";
 import { createRanker as createPrevious } from "./level-1-normalization.ts";
@@ -29,14 +30,21 @@ export const meta: EvolutionLevel = {
   candidateWidth: 5000,
 };
 
+/** How much a listing posted on the snapshot day can gain, in text-fit units (0 to 1). */
+const FRESHNESS_WEIGHT = 0.1;
+/** After this many days, the freshness bonus is half as large. */
+const FRESHNESS_HALF_LIFE_DAYS = 7;
+
 /** Duplication across levels is accepted so each evolution level stays independently readable. */
 export function createRanker(deps: LevelDeps): LevelRanker {
   const previous = createPrevious(deps);
+  // The catalog is a fixed snapshot, so age is counted from its newest listing, not from the
+  // wall clock. The same evaluation then gives the same numbers on any day it runs.
+  const snapshot = snapshotInstant(deps.index.availableItems);
   return {
     match: previous.match,
     score(understanding, candidate) {
-      const base = previous.score(understanding, candidate);
-      const value = bm25Score(
+      const raw = bm25Score(
         understanding.expandedTokens,
         candidate,
         deps.index.documentCount,
@@ -44,12 +52,19 @@ export function createRanker(deps: LevelDeps): LevelRanker {
         deps.index.documentFrequency,
         (text) => analyzeDocument(text, deps.levers),
       );
+      const max = bm25MaxScore(
+        understanding.expandedTokens,
+        deps.index.documentCount,
+        deps.index.documentFrequency,
+      );
+      const textFit = max > 0 ? raw / max : 0;
+      const freshness = freshnessScore(candidate.postedAt, snapshot, FRESHNESS_HALF_LIFE_DAYS);
       return {
         item: candidate,
-        score: base.score + value,
+        score: textFit + FRESHNESS_WEIGHT * freshness,
         signals: buildSignals(understanding, candidate, [
-          { name: "bm25", value },
-          { name: "recency", value: base.score },
+          { name: "bm25", value: textFit, weight: 1 },
+          { name: "recency", value: freshness, weight: FRESHNESS_WEIGHT },
         ]),
       };
     },

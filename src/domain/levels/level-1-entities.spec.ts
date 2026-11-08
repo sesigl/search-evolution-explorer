@@ -105,9 +105,9 @@ describe("level 1 entities", () => {
     const structural = scored.signals.find((signal) => signal.name === "structuredConceptMatch");
     const lexical = scored.signals.find((signal) => signal.name === "lexicalConceptMatch");
     expect(structural?.value).toBe(1);
-    expect(structural?.weight).toBe(1);
+    expect(structural?.weight).toBe(0.05);
     expect(lexical?.value).toBe(1);
-    expect(lexical?.weight).toBe(0.5);
+    expect(lexical?.weight).toBe(0.025);
     expect(entities.conceptsFor?.(understanding).map((concept) => concept.value)).toEqual(["SOFA"]);
   });
 

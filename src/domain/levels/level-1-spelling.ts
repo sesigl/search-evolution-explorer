@@ -107,7 +107,11 @@ function correctedScoring(
     item: candidate,
     score: base.score,
     signals: buildSignals(corrected, candidate, [
-      ...base.signals.map((signal) => ({ name: signal.name, value: signal.value, weight: 1 })),
+      ...base.signals.map((signal) => ({
+        name: signal.name,
+        value: signal.value,
+        weight: signal.weight ?? 1,
+      })),
       { name: "spellingCorrection", value: fixes.length > 0 ? 1 : 0 },
     ]),
   };

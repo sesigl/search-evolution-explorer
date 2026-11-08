@@ -33,6 +33,24 @@ export function bm25Score(
   return score;
 }
 
+/**
+ * The highest score bm25Score can give this query: each term's contribution approaches
+ * idf * (k1 + 1) as its count grows, whatever the listing length. Dividing by this bound puts
+ * text fit between 0 and 1 for every query, so it can be weighed against other 0-to-1 signals.
+ */
+export function bm25MaxScore(
+  queryTokens: readonly string[],
+  documentCount: number,
+  documentFrequency: ReadonlyMap<string, number>,
+): number {
+  let max = 0;
+  for (const term of queryTokens) {
+    const df = documentFrequency.get(term) ?? 0;
+    max += Math.log(1 + (documentCount - df + 0.5) / (df + 0.5)) * (K1 + 1);
+  }
+  return max;
+}
+
 export function documentFrequencyOf(
   items: readonly CorpusItem[],
   analyze: Analyzer,

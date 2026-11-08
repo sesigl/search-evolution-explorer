@@ -8,8 +8,8 @@ import type { EvolutionLevel, LevelDeps, LevelRanker } from "../types/level.ts";
 import type { QueryUnderstanding } from "../types/query.ts";
 import { createRanker as createPrevious } from "./level-1-entities.ts";
 
-const FILTER_BOOST = 2;
-const ATTRIBUTE_BOOST = 1;
+const FILTER_BOOST = 0.1;
+const ATTRIBUTE_BOOST = 0.05;
 /**
  * Assumed ad-side quality until it is measured per property. FILTER runs only
  * above these gates; lower them and fewer queries filter. The lesson names

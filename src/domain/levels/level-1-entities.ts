@@ -17,8 +17,8 @@ import type { QueryUnderstanding } from "../types/query.ts";
 import type { CandidateSet, RetrievalSignal } from "../types/ranking.ts";
 import { createRanker as createPrevious } from "./level-1-spelling.ts";
 
-const STRUCTURED_MATCH_WEIGHT = 1;
-const LEXICAL_CONCEPT_WEIGHT = 0.5;
+const STRUCTURED_MATCH_WEIGHT = 0.05;
+const LEXICAL_CONCEPT_WEIGHT = 0.025;
 
 export const meta: EvolutionLevel = {
   id: "level-1-entities",
