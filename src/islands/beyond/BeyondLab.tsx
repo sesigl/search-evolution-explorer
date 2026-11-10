@@ -1,5 +1,6 @@
 import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import type { WorkbenchState } from "../../actions/search-workbench.ts";
+import { liveApi } from "../shared/live-api.ts";
 
 /** The base engine both demos build on: hybrid retrieval, the same serving path the chapters use. */
 const BASE_LEVEL = "level-4-hybrid";
@@ -142,7 +143,8 @@ export default function BeyondLab() {
     }
     const params = new URLSearchParams({ q: trimmed, level: BASE_LEVEL });
     try {
-      const response = await fetch(`/api/search.json?${params.toString()}`);
+      const response = await liveApi(`/api/search.json?${params.toString()}`);
+      if (!response.ok) throw new Error("Browser verification or search failed.");
       const body = (await response.json()) as WorkbenchState;
       if (body.error !== null || body.view === null) {
         setError(body.error?.message ?? "This level is not available right now.");

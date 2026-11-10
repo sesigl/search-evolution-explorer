@@ -7,10 +7,9 @@ import {
   PRECOMPUTED_RESULTS_PATH,
   type PrecomputedResults,
   readPrecomputedResults,
+  selectPrecomputedResults,
 } from "./adapters/precomputed-results.ts";
 import { createSystemClock } from "./adapters/system-clock.ts";
-import { createTransformersCrossEncoder } from "./adapters/transformers-cross-encoder.ts";
-import { createTransformersQueryEncoder } from "./adapters/transformers-query-encoder.ts";
 import { loadTwoTowerArtifact } from "./adapters/two-tower-artifact.ts";
 import { codeNotesFor } from "./content/code-notes.ts";
 import { hashContent } from "./domain/artifacts/manifest.ts";
@@ -219,7 +218,11 @@ async function buildApp(): Promise<App> {
   const biasSessions = readSessions("data/clicks.ndjson");
   let scorecardQueryVectors: ReadonlyMap<string, Float32Array> | undefined;
   const fingerprint = resultsFingerprint(corpusHash, clicksHash, [...rankerFactories.keys()]);
-  const precomputed = usablePrecomputedResults(fingerprint);
+  const precomputed = selectPrecomputedResults(
+    readPrecomputedResults(PRECOMPUTED_RESULTS_PATH),
+    (ids) => resultsFingerprint(corpusHash, clicksHash, ids),
+    import.meta.env.DEV,
+  );
   // These results are deterministic for one corpus, so they are computed once per process,
   // or read from the precomputed file when it matches the current code and data.
   let fullScorecard: Promise<Scorecard> | undefined =
@@ -404,17 +407,6 @@ function resultsFingerprint(
   );
 }
 
-function usablePrecomputedResults(fingerprint: string): PrecomputedResults | undefined {
-  const results = readPrecomputedResults(PRECOMPUTED_RESULTS_PATH);
-  if (results === undefined || results.fingerprint === fingerprint) {
-    return results;
-  }
-  // biome-ignore lint/suspicious/noConsole: a stale file is an operator problem, not a user error
-  console.warn(
-    `${PRECOMPUTED_RESULTS_PATH} does not match the current code and data. Computing results live. Run npm run data:precompute.`,
-  );
-}
-
 /** Levels whose candidate set is built from precomputed document vectors. */
 const VECTOR_LEVELS = new Set(["level-4-hybrid", "level-5-cross-encoder", "level-6-two-tower"]);
 
@@ -432,7 +424,11 @@ function loadVectorStore() {
 }
 
 async function loadEncoder(): Promise<QueryEncoder | undefined> {
+  if (!existsSync(".cache/Xenova/all-MiniLM-L6-v2")) return undefined;
   try {
+    const { createTransformersQueryEncoder } = await import(
+      "./adapters/transformers-query-encoder.ts"
+    );
     return await createTransformersQueryEncoder(".cache");
   } catch {
     return undefined;
@@ -444,6 +440,9 @@ async function loadCrossEncoder(): Promise<CrossEncoder | undefined> {
     return;
   }
   try {
+    const { createTransformersCrossEncoder } = await import(
+      "./adapters/transformers-cross-encoder.ts"
+    );
     return await createTransformersCrossEncoder(".cache", true);
   } catch {
     return undefined;

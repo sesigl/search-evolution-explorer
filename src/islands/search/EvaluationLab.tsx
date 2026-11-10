@@ -1,7 +1,9 @@
-import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
+import { batch, createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import type { GradedRanking, GradedRow } from "../../actions/grade-query.ts";
 import { queryIntentFor } from "../../domain/evaluation/query-intent.ts";
 import type { LevelListItem } from "../../domain/levels/list-levels.ts";
+import { liveApi } from "../shared/live-api.ts";
+import { fetchScorecard } from "../shared/scorecard.ts";
 import { rememberPlace } from "../shared/storage.ts";
 import { GRADE_LABELS } from "./format.ts";
 import Terms from "./Terms.tsx";
@@ -72,7 +74,7 @@ export default function EvaluationLab(props: Props) {
 
   async function fetchGrade(queryText: string, id: string): Promise<GradeOutcome> {
     try {
-      const response = await fetch(
+      const response = await liveApi(
         `/api/grade.json?q=${encodeURIComponent(queryText)}&level=${encodeURIComponent(id)}`,
       );
       if (response.ok) {
@@ -90,13 +92,9 @@ export default function EvaluationLab(props: Props) {
     const mine = generation;
     setPending(true);
     const queryText = query();
-    const ready = gradable();
-    const [main, ...others] = await Promise.all([
+    const [main, scorecard] = await Promise.all([
       fetchGrade(queryText, levelId()),
-      ...ready.map(async (level) => ({
-        levelId: level.id,
-        ndcgAt10: (await fetchGrade(queryText, level.id)).ranking?.ndcgAt10 ?? null,
-      })),
+      fetchScorecard().catch(() => null),
     ]);
     if (mine !== generation) {
       return;
@@ -104,7 +102,13 @@ export default function EvaluationLab(props: Props) {
     setGraded(main.ranking);
     setError(main.error);
     // A chapter whose artifacts are not ready is never asked; it compares as "n/a".
-    const readyScores = new Map(others.map((score) => [score.levelId, score.ndcgAt10]));
+    const readyScores = new Map(
+      (scorecard?.runs ?? []).map((run) => [
+        run.levelId,
+        run.perQuery.find((row) => row.queryText === queryText)?.ndcgAt10 ?? null,
+      ]),
+    );
+    if (main.ranking !== null) readyScores.set(levelId(), main.ranking.ndcgAt10);
     setScores(
       chapters().map((level) => ({
         levelId: level.id,
@@ -118,19 +122,29 @@ export default function EvaluationLab(props: Props) {
     void refresh();
     const onGrade = (event: Event) => {
       const request = (event as CustomEvent<GradeRequest>).detail;
-      if (props.queries.includes(request.query)) {
-        setQuery(request.query);
-      }
-      if (gradable().some((level) => level.id === request.levelId)) {
-        setLevelId(request.levelId);
-      }
+      selectRanking(request.query, request.levelId);
       section?.scrollIntoView({ block: "nearest", behavior: "smooth" });
       setFlash(true);
       setTimeout(() => setFlash(false), 900);
     };
+    const onPop = () => {
+      const params = new URLSearchParams(window.location.search);
+      selectRanking(params.get("q") ?? DEFAULT_QUERY, params.get("grade") ?? "level-1-recency");
+    };
     document.addEventListener(GRADE_EVENT, onGrade);
-    onCleanup(() => document.removeEventListener(GRADE_EVENT, onGrade));
+    window.addEventListener("popstate", onPop);
+    onCleanup(() => {
+      document.removeEventListener(GRADE_EVENT, onGrade);
+      window.removeEventListener("popstate", onPop);
+    });
   });
+
+  function selectRanking(queryText: string, id: string) {
+    batch(() => {
+      if (props.queries.includes(queryText)) setQuery(queryText);
+      if (gradable().some((level) => level.id === id)) setLevelId(id);
+    });
+  }
   createEffect(
     on(
       [query, levelId],

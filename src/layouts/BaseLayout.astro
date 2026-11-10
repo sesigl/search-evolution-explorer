@@ -1,4 +1,5 @@
 ---
+import process from "node:process";
 import "../styles/global.css";
 
 interface Props {
@@ -28,7 +29,7 @@ const nav = [
 ];
 ---
 
-<html lang="en">
+<html lang="en" data-hosted={process.env["VERCEL"] === "1" ? "vercel" : "local"}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

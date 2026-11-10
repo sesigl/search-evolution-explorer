@@ -12,6 +12,9 @@ on:
       - ".npmrc"
       - "tsconfig.json"
       - "vercel.json"
+      - "tools/hosting-policy.ts"
+      - "tools/finalize-hosting.ts"
+      - "public/**"
       - ".github/workflows/deploy-search-app.yml"
   workflow_dispatch:
 
@@ -43,6 +46,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check types and hosting protection
+        run: npm run typecheck && npx vitest run src/http tools/hosting-policy.spec.ts src/adapters/precomputed-results.spec.ts
 
       - name: Pull Vercel project settings
         run: npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment=production --token="$VERCEL_TOKEN"

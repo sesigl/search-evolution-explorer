@@ -26,6 +26,26 @@ export function readPrecomputedResults(path: string): PrecomputedResults | undef
   return parsed;
 }
 
+/** A report is measured offline; model availability on the hosting machine cannot invalidate it. */
+export function selectPrecomputedResults(
+  results: PrecomputedResults | undefined,
+  fingerprintFor: (levelIds: readonly string[]) => string,
+  allowLiveEvaluation: boolean,
+): PrecomputedResults | undefined {
+  // The introduction has an evaluation row but no serving ranker.
+  const levelIds =
+    results?.fullScorecard.runs
+      .map((run) => run.levelId)
+      .filter((id) => id !== "level-0-evaluation") ?? [];
+  if (results !== undefined && results.fingerprint === fingerprintFor(levelIds)) return results;
+  if (!allowLiveEvaluation) {
+    throw new Error(
+      "Reports are missing or stale. Run npm run data:precompute locally and commit the results before building.",
+    );
+  }
+  return undefined;
+}
+
 function isPrecomputedResults(value: unknown): value is PrecomputedResults {
   if (typeof value !== "object" || value === null) {
     return false;

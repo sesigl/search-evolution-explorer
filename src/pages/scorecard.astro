@@ -25,7 +25,7 @@ try {
   }
 }
 const judgedQueries = scorecard?.runs[0]?.perQuery.length ?? 0;
-const testOnly = Astro.url.searchParams.get("split") === "test";
+const testOnly = Astro.props.testOnly === true;
 const displayedScorecard = testOnly ? scorecard?.heldOut ?? null : scorecard;
 const displayedQueries = displayedScorecard?.runs[0]?.perQuery.length ?? 0;
 ---
@@ -46,7 +46,7 @@ const displayedQueries = displayedScorecard?.runs[0]?.perQuery.length ?? 0;
           </a>
           <nav class="mt-3 flex flex-wrap gap-4 text-[13px]" aria-label="Evaluation query split">
             <a href="/scorecard?level=level-6-two-tower" aria-current={!testOnly ? "page" : undefined}>All judged queries</a>
-            <a href="/scorecard?split=test&level=level-6-two-tower" aria-current={testOnly ? "page" : undefined}>Chapter 11 held-out queries</a>
+             <a href="/scorecard/test?level=level-6-two-tower" aria-current={testOnly ? "page" : undefined}>Chapter 11 held-out queries</a>
           </nav>
         </div>
         <span class="tag tag-ok">deterministic</span>
@@ -54,7 +54,7 @@ const displayedQueries = displayedScorecard?.runs[0]?.perQuery.length ?? 0;
       {errorMessage !== null ? <SearchStates kind="unavailable" message={errorMessage} /> : null}
       {
         displayedScorecard !== null ? (
-          <ScorecardView scorecard={displayedScorecard} labels={labels} highlightLevelId={Astro.url.searchParams.get("level")} />
+           <ScorecardView scorecard={displayedScorecard} labels={labels} />
         ) : null
       }
       {testOnly && displayedScorecard === null ? <SearchStates kind="unavailable" message="The held-out split requires current Chapter 11 artifacts. Run npm run data:two-tower and restart the app." /> : null}

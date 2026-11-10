@@ -93,9 +93,7 @@ export default function TwoTowerLab(props: {
     setStage(2);
   }
   async function evaluate() {
-    setStatus(
-      "Running the real scorecard. The first run includes local neural inference and can take several minutes.",
-    );
+    setStatus("Loading the measured scorecard.");
     try {
       const response = await fetch("/api/scorecard.json");
       if (!response.ok) {

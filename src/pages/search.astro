@@ -6,17 +6,23 @@ import SearchWorkbench from "../islands/search/SearchWorkbench.tsx";
 import Tour from "../islands/tour/Tour.tsx";
 import BaseLayout from "../layouts/BaseLayout.astro";
 
-const request = parseWorkbenchRequest(Astro.url.searchParams);
+// Query parameters belong to the browser, not to a server-rendered page.
+const request = parseWorkbenchRequest(new URLSearchParams());
 const [{ levels, state }, teachingQueries] = await Promise.all([
   handleSearchWorkbench(request),
   handleListTeachingQueries(),
 ]);
+// Empty chapter views contain no search results. Build them once instead of calling a live API
+// merely to open a chapter or the introduction.
+const previews = Object.fromEntries(await Promise.all(levels.map(async (level) => {
+  const preview = await handleSearchWorkbench({ ...request, levelId: level.id });
+  return [level.id, preview.state];
+})));
 const trail = `/search?q=${encodeURIComponent(state.query)}&level=${encodeURIComponent(state.levelId)}`;
 // The tour offers itself where the search layout is shown. It auto-starts on a first
 // visit only over a blank workbench: arriving with a query means "show my results",
 // and a centred welcome card must not cover the results a link promised.
 const tourable = state.mode === "search";
-const tourFirstVisit = request.query === "";
 ---
 
 <BaseLayout title="Search — Search Evolution Explorer" trail={trail} hasTour={tourable}>
@@ -24,16 +30,17 @@ const tourFirstVisit = request.query === "";
     client:load
     levels={levels}
     initial={state}
+    previews={previews}
     teachingQueries={teachingQueries}
-    gradeLevelId={Astro.url.searchParams.get("grade")}
+    gradeLevelId={null}
   />
   {
     tourable ? (
       <Tour
         client:load
         tour={SEARCH_TOUR}
-        autoStart={Astro.url.searchParams.get("tour") === "1"}
-        startOnFirstVisit={tourFirstVisit}
+        autoStart={false}
+        startOnFirstVisit={true}
       />
     ) : null
   }

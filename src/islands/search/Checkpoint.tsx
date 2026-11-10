@@ -1,5 +1,8 @@
 import { createEffect, createSignal, For, on, onMount, Show } from "solid-js";
 import type { Checkpoint as CheckpointData } from "../../actions/get-checkpoint.ts";
+import { checkpointFor } from "../../domain/evaluation/checkpoint.ts";
+import { levels } from "../../domain/levels/level-registry.ts";
+import { fetchScorecard } from "../shared/scorecard.ts";
 import Terms from "./Terms.tsx";
 
 interface Props {
@@ -43,9 +46,9 @@ export default function Checkpoint(props: Props) {
       return;
     }
     setPending(true);
-    const params = new URLSearchParams({ level: props.levelId, q: props.query });
-    const response = await fetch(`/api/checkpoint.json?${params.toString()}`);
-    const body = response.ok ? ((await response.json()) as CheckpointData | null) : null;
+    const body = await fetchScorecard()
+      .then((scorecard) => checkpointFor(scorecard, levels, props.levelId, props.query))
+      .catch(() => null);
     cache.set(key, body);
     if (mine === generation) {
       setData(body);
@@ -86,12 +89,8 @@ export default function Checkpoint(props: Props) {
         fallback={
           <p class="note m-0">
             {pending()
-              ? props.levelId.startsWith("level-4-") ||
-                props.levelId.startsWith("level-5-") ||
-                props.levelId.startsWith("level-6-")
-                ? "Grading every judged query, including the neural chapters. The first run can take several minutes; later checkpoints reuse the results. You can keep searching."
-                : "Grading the test queries on the earlier chapters. This takes a moment the first time."
-              : "This chapter cannot be graded on this machine right now."}
+              ? "Loading the measured scorecard."
+              : "The measured scorecard is unavailable."}
           </p>
         }
       >

@@ -246,6 +246,7 @@ const presentFamilies = QUERY_FAMILIES.filter((family) =>
             const previousId = [...labels.entries()].find(([, entry]) => entry === previous)?.[0];
             return (
               <li
+                data-regression-level={row.levelId}
                 class:list={[
                   "grid grid-cols-1 gap-1 border-t border-rule-soft px-3.5 py-2.5 text-[13px] sm:grid-cols-[150px_1fr_90px_110px] sm:gap-3",
                   row.levelId === highlightLevelId ? "bg-amber-tint/60 font-semibold" : "",
@@ -275,3 +276,15 @@ const presentFamilies = QUERY_FAMILIES.filter((family) =>
     }
   </section>
 </div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("split") === "test" && window.location.pathname === "/scorecard") {
+    params.delete("split");
+    window.location.replace(`/scorecard/test?${params.toString()}${window.location.hash}`);
+  }
+  const level = params.get("level");
+  for (const row of document.querySelectorAll<HTMLElement>("[data-regression-level]")) {
+    if (row.dataset.regressionLevel === level) row.classList.add("bg-amber-tint/60", "font-semibold");
+  }
+</script>

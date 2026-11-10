@@ -2,7 +2,7 @@
  * Compute the results that are too slow for one serverless request: the full scorecard, the
  * early-chapter scorecard and the position-bias lesson. The deployed app serves them from
  * data/precomputed/results.json while its fingerprint matches the current code and data.
- * When the fingerprint does not match, the app computes them live and logs a warning.
+ * Production builds reject missing or stale reports. Only local development may compute them live.
  *
  * The app code needs Vite to load, so this asks a running dev server.
  *

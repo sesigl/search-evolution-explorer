@@ -145,7 +145,13 @@ export default function Tour(props: Props) {
       cancelAnimationFrame(frame);
       clearTimeout(advanceTimer);
     });
-    if (props.autoStart || (props.startOnFirstVisit && !tourSeen(props.tour.name))) {
+    const params = new URLSearchParams(window.location.search);
+    const hasQuery = (params.get("q") ?? "").trim() !== "";
+    if (
+      props.autoStart ||
+      params.get("tour") === "1" ||
+      (props.startOnFirstVisit && !hasQuery && !tourSeen(props.tour.name))
+    ) {
       start();
     }
   });
