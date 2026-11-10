@@ -15,6 +15,11 @@ import CodeExplorer from "../../islands/code/CodeExplorer.tsx";
 import Tour from "../../islands/tour/Tour.tsx";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 
+export async function getStaticPaths() {
+  const { levels } = await handleGetLevels();
+  return levels.map((level) => ({ params: { id: level.id } }));
+}
+
 const levelId = Astro.params.id ?? "";
 const { levels } = await handleGetLevels();
 const selected = levels.find((level) => level.id === levelId);
@@ -41,20 +46,6 @@ try {
     errorMessage = error.message;
   } else {
     throw error;
-  }
-}
-
-// Deep link: /level/<id>?file=<module path>&symbol=<name> opens that function on top of the level file.
-const requestedFile = Astro.url.searchParams.get("file");
-const requestedSymbol = Astro.url.searchParams.get("symbol");
-let initial: CodeModuleView | null = null;
-if (root !== null && requestedFile !== null && requestedFile !== root.path) {
-  try {
-    initial = await handleGetCodeModule({ path: requestedFile });
-  } catch (error) {
-    if (!(error instanceof UseCaseError)) {
-      throw error;
-    }
   }
 }
 
@@ -179,8 +170,8 @@ const composed =
             rootLabel={root.fileName}
             compositionLine={view.compositionPointLine}
             composesLabel={composed === null ? null : `level ${composed.ordinal}`}
-            initial={initial}
-            initialSymbol={initial === null ? null : requestedSymbol}
+            initial={null}
+            initialSymbol={null}
           />
         ) : null
       }
@@ -191,8 +182,8 @@ const composed =
       <Tour
         client:load
         tour={CODE_TOUR}
-        autoStart={Astro.url.searchParams.get("tour") === "1"}
-        startOnFirstVisit={initial === null}
+        autoStart={false}
+        startOnFirstVisit={true}
       />
     ) : null
   }

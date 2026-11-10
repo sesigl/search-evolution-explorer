@@ -1,4 +1,4 @@
-import { UseCaseError } from "../../domain/search/errors.ts";
+import { UseCaseError } from "../domain/search/errors.ts";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 

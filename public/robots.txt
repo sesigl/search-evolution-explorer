@@ -1,5 +1,5 @@
-# Every search, comparison and API URL runs the search engine on the server.
-# Crawlers following the many query links would spend compute on pages nobody reads.
+# Avoid duplicate query URLs and API requests from cooperative crawlers.
+# Pages are static; live API bot protection is enforced separately.
 User-agent: *
 Disallow: /api/
 Disallow: /search?

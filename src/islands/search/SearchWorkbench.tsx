@@ -7,6 +7,7 @@ import type {
 import { type LessonTry, lessonFor } from "../../content/lessons.ts";
 import type { TourRun } from "../../content/tours.ts";
 import type { LevelListItem } from "../../domain/levels/list-levels.ts";
+import { liveJson } from "../shared/live-api.ts";
 import { markVisited, rememberPlace } from "../shared/storage.ts";
 import { TOUR_RUN_EVENT } from "../tour/Tour.tsx";
 import Checkpoint, { gradeHref } from "./Checkpoint.tsx";
@@ -20,6 +21,7 @@ import TwoTowerLab from "./TwoTowerLab.tsx";
 interface Props {
   levels: readonly LevelListItem[];
   initial: WorkbenchState;
+  previews: Readonly<Record<string, WorkbenchState>>;
   /** Judged queries the introduction's lab can grade. */
   teachingQueries: readonly string[];
   /** Chapter the introduction's lab grades first, from the `grade` URL parameter. */
@@ -305,25 +307,52 @@ export default function SearchWorkbench(props: Props) {
     if (trail !== null) {
       trail.textContent = `/search?q=${encodeURIComponent(next.query)}&level=${encodeURIComponent(next.levelId)}`;
     }
+    if (showPreview(next, after)) {
+      setPending(false);
+      return;
+    }
     try {
-      const response = await fetch(`/api/search.json?${params.toString()}`, {
-        signal: controller.signal,
-      });
-      const body = (await response.json()) as WorkbenchState;
+      const body = await liveJson<WorkbenchState>(
+        `/api/search.json?${params.toString()}`,
+        controller.signal,
+      );
       // A newer request superseded this one; its response must not paint stale results.
       if (inFlight === controller) {
         setState(body);
         after?.(body);
       }
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) {
-        throw error;
-      }
+      showFailure(error, controller);
     } finally {
       if (inFlight === controller) {
         setPending(false);
       }
     }
+  }
+
+  function showPreview(
+    next: Pick<WorkbenchState, "query" | "levelId" | "levers">,
+    after?: (loaded: WorkbenchState) => void,
+  ): boolean {
+    const preview = props.previews[next.levelId];
+    if (preview === undefined || (next.query !== "" && preview.mode === "search")) return false;
+    const body = { ...preview, ...next };
+    setState(body);
+    after?.(body);
+    return true;
+  }
+
+  function showFailure(error: unknown, controller: AbortController) {
+    if (inFlight !== controller || controller.signal.aborted) return;
+    setState((current) => ({
+      ...current,
+      view: null,
+      error: {
+        kind: "unavailable",
+        message: error instanceof Error ? error.message : "Search is unavailable.",
+        command: null,
+      },
+    }));
   }
 
   function goPage(page: number) {
@@ -446,8 +475,15 @@ export default function SearchWorkbench(props: Props) {
   // Set after hydration so the server-rendered links still work without JavaScript.
   onMount(() => {
     hydrated = true;
-    remember(state());
-    syncCodeLink(state().levelId);
+    const initialRequest = requestFromUrl();
+    setDraft(initialRequest.query);
+    setLessonLevelId(initialRequest.levelId);
+    if (window.location.search === "") {
+      remember(state());
+      syncCodeLink(state().levelId);
+    } else {
+      void load(initialRequest, undefined, initialRequest.page, "none");
+    }
     // Browser Back/Forward: restore the query, level, levers and page the URL names.
     const onPopState = () => {
       const next = requestFromUrl();
@@ -580,8 +616,12 @@ export default function SearchWorkbench(props: Props) {
           <EvaluationLab
             queries={props.teachingQueries}
             levels={props.levels}
-            initialQuery={props.initial.query}
-            initialLevelId={props.gradeLevelId}
+            initialQuery={state().query}
+            initialLevelId={
+              typeof window === "undefined"
+                ? props.gradeLevelId
+                : new URLSearchParams(window.location.search).get("grade")
+            }
           />
           <div class="flex flex-wrap gap-2.5">
             <a class="btn" href="/search?q=sofa&level=level-1-recency">

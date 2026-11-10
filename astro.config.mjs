@@ -66,7 +66,8 @@ const vercelAdapter = vercel({
 });
 
 export default defineConfig({
-  output: "server",
+  // Pages are static by default. Only the explicitly opted-in live APIs use a function.
+  output: "static",
   adapter: deployToVercel ? vercelAdapter : node({ mode: "standalone" }),
   integrations: [solidJs()],
   vite: {

@@ -54,6 +54,7 @@ export default function CodeExplorer(props: Props) {
   }
   const [codeRegion, setCodeRegion] = createSignal<HTMLElement>();
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
+  let restoration = 0;
 
   const top = () => frames().at(-1) ?? rootFrame;
   const depth = () => frames().length - 1;
@@ -119,13 +120,33 @@ export default function CodeExplorer(props: Props) {
     if (cached !== undefined) {
       return cached;
     }
-    const response = await fetch(`/api/code.json?path=${encodeURIComponent(path)}`);
+    const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+    const response = await fetch(`/api/code/${encodedPath}.json`);
     if (!response.ok) {
       return null;
     }
     const view = (await response.json()) as CodeModuleView;
     cache.set(path, view);
     return view;
+  }
+
+  /** Static HTML has no query parameters. Restore source deep links and both history directions. */
+  async function restoreUrl() {
+    const mine = ++restoration;
+    const params = new URLSearchParams(window.location.search);
+    const path = params.get("file") ?? props.root.path;
+    setPending(true);
+    try {
+      const view = await fetchModule(path);
+      if (mine !== restoration || view === null) return;
+      const frame = { view, symbol: params.get("symbol"), fromLine: null };
+      setFrames(path === props.root.path ? [frame] : [rootFrame, frame]);
+      history.replaceState({ depth: depth() }, "");
+    } catch {
+      // A missing static source file must not break keyboard and history navigation.
+    } finally {
+      if (mine === restoration) setPending(false);
+    }
   }
 
   async function open(link: CodeLink, fromLine: number) {
@@ -187,16 +208,13 @@ export default function CodeExplorer(props: Props) {
   );
 
   onMount(() => {
+    void restoreUrl();
     const definition = focused();
     if (definition !== null) {
       scrollTo(definition.startLine, false, "top");
     }
-    history.replaceState({ depth: depth() }, "", syncUrl());
-    const onPop = (event: PopStateEvent) => {
-      const wanted = (event.state as { depth?: number } | null)?.depth ?? 0;
-      if (wanted < depth()) {
-        setFrames((current) => current.slice(0, wanted + 1));
-      }
+    const onPop = () => {
+      void restoreUrl();
     };
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -221,6 +239,7 @@ export default function CodeExplorer(props: Props) {
     window.addEventListener("popstate", onPop);
     window.addEventListener("keydown", onKey);
     onCleanup(() => {
+      restoration += 1;
       window.removeEventListener("popstate", onPop);
       window.removeEventListener("keydown", onKey);
       clearTimeout(flashTimer);

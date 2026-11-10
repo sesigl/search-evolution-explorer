@@ -30,7 +30,20 @@ labels come from WANDS (Wayfair ANnotation Dataset). Download the release once i
 | `npm run data:precompute` | `data/precomputed/results.json`: scorecards and bias lesson for the deployed app (needs `npm run dev` running) |
 | `npm run data:all` | WANDS import, embeddings, clicks, ranker training, cross-encoder download, then tower training |
 
-Run `npm run data:precompute` again after a change to `src/domain` or to the data files, then commit the file. The deployed app serves the scorecard and the bias lesson from it while its fingerprint matches the current code and data. If the fingerprint does not match, the app computes them live, which takes longer than one serverless request may run.
+Run `npm run data:precompute` again after a change to `src/domain` or to the data files, then commit the file. Production builds reject a missing or stale report. Production never rebuilds a full scorecard during a reader's request. Local development can still compute it live.
+
+## Hosting and cost controls
+
+Pages, code files, training reports and scorecards are static. Only search, one-query grading
+and comparison use live APIs. Shared query links are restored by the browser. The full local
+search and training workflow remains available with `npm run dev`.
+
+Vercel builds run a post-build check that limits function routing to those three POST APIs.
+Crawler GET requests, local-only tools, unknown paths and the function's own URL receive
+static responses at the CDN. Live POST requests use BotID Basic before the search application
+loads, then a bounded per-instance cache. This cache is an optimization, not a rate limit.
+
+See [Hosting](docs/hosting.md) for release checks, model availability, firewall settings and rollback.
 
 Levels 1 to 7 run without derived artifacts. Chapter 8 needs the ranker files. Chapter 9 needs embeddings and a local model cache. Chapter 10 needs the corrected ranker, current embeddings, and the cross-encoder cache. Chapter 11 needs the two-tower artifact. For an existing setup, run `npm run data:cross-encoder` and restart the app. The setup command downloads and checks the pinned `Xenova/ms-marco-MiniLM-L-6-v2` model. Search runs offline. This model was pretrained on MS MARCO; no local click training or evaluation judgments are used to build it.
 

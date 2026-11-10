@@ -1,6 +1,7 @@
-import type { APIRoute } from "astro";
-import { handleGetCodeModule } from "../../actions/get-code-module.ts";
-import { respondJson } from "./_json.ts";
+import { localJsonRoute } from "../../http/live-routes.ts";
 
-export const GET: APIRoute = ({ url }) =>
-  respondJson(() => handleGetCodeModule({ path: url.searchParams.get("path") ?? "" }));
+export const prerender = false;
+export const GET = localJsonRoute(async (params) => {
+  const { handleGetCodeModule } = await import("../../actions/get-code-module.ts");
+  return handleGetCodeModule({ path: params.get("path") ?? "" });
+});
