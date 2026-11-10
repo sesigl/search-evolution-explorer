@@ -51,6 +51,9 @@ in development. The local evaluation tools can still use their existing GET APIs
 static artifacts and finalizes the documented Build Output API routes. It removes Astro's
 default catch-all to the function, which would otherwise run Node even for unknown bot probes.
 Only `/api/search.json`, `/api/grade.json` and `/api/compare.json` route POST requests to `_render`.
+The pinned BotID client's challenge and detection paths proxy directly to Vercel's BotID service
+before the static fallback. They do not invoke the search function. The finalizer owns these
+Build Output API routes, so protection does not depend on framework rewrite merging.
 The unused Astro Actions registry was removed so it cannot provide another, unprotected entry.
 Other methods receive a static 405. Unknown paths, unused framework endpoints, local tools and
 direct requests to `_render` receive a static 404. A new server-rendered page fails the build
@@ -81,6 +84,9 @@ after approval. An in-memory limiter is not a reliable limit across serverless i
 Before production release, test a real browser on a Vercel preview: shared search link,
 comparison, one-query grading, source deep link, Back/Forward and BotID verification. Local
 tests cover the allow/deny behavior but cannot validate Vercel's hosted identity service.
+The real-client integration test also loads the installed BotID SDK with a fixture challenge
+and checks that it sends protected requests only after the challenge path resolves. This tests
+the transport contract, not real human/bot classification.
 
 ## Investigation evidence
 

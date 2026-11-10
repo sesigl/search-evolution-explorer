@@ -48,7 +48,7 @@ jobs:
         run: npm ci
 
       - name: Check types and hosting protection
-        run: npm run typecheck && npx vitest run src/http tools/hosting-policy.spec.ts src/adapters/precomputed-results.spec.ts
+        run: npm run typecheck && npx vitest run src/http tools/hosting-policy.spec.ts tools/botid-client.spec.ts src/adapters/precomputed-results.spec.ts
 
       - name: Pull Vercel project settings
         run: npx --yes vercel@${VERCEL_CLI_VERSION} pull --yes --environment=production --token="$VERCEL_TOKEN"
